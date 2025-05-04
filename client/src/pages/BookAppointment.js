@@ -10,13 +10,22 @@ import {
   Paper,
   Alert,
   Snackbar,
-  CircularProgress
+  CircularProgress,
+  FormControlLabel,
+  Checkbox,
+  Divider,
+  Switch
 } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { doctors } from '../data/doctors';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import EmailIcon from '@mui/icons-material/Email';
+import SmsIcon from '@mui/icons-material/Sms';
+import { db } from '../firebase';
+import { collection, addDoc, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 
 const BookAppointment = () => {
   const [searchParams] = useSearchParams();
@@ -30,16 +39,50 @@ const BookAppointment = () => {
     appointmentTime: null,
     reason: '',
   });
+
+  const [reminders, setReminders] = useState({
+    email: true,
+    sms: false,
+    reminderTime: '24' // hours before appointment
+  });
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+  const [userData, setUserData] = useState(null);
 
   useEffect(() => {
     if (doctorId) {
       setFormData(prev => ({ ...prev, doctorId }));
     }
   }, [doctorId]);
+
+  // Fetch user data for email and phone
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const fetchUserData = async () => {
+      try {
+        const usersQuery = query(
+          collection(db, "users"), 
+          where("userId", "==", currentUser.uid)
+        );
+        const querySnapshot = await getDocs(usersQuery);
+        querySnapshot.forEach((doc) => {
+          setUserData(doc.data());
+        });
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    fetchUserData();
+  }, [currentUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,7 +114,7 @@ const BookAppointment = () => {
         throw new Error('Selected doctor not found');
       }
 
-      // Create new appointment object
+      // Create new appointment object for local storage
       const newAppointment = {
         id: Date.now(),
         date,
@@ -92,23 +135,90 @@ const BookAppointment = () => {
         existingAppointments = [];
       }
       
-      // Add new appointment
+      // Add new appointment to localStorage
       const updatedAppointments = [...existingAppointments, newAppointment];
       console.log('Updated appointments:', updatedAppointments);
-      
-      // Save to localStorage
       localStorage.setItem('appointments', JSON.stringify(updatedAppointments));
-      console.log('Appointments saved to localStorage');
+      
+      // Add appointment to Firebase with reminder settings
+      const appointmentDateTime = new Date(formData.appointmentDate);
+      appointmentDateTime.setHours(
+        new Date(formData.appointmentTime).getHours(),
+        new Date(formData.appointmentTime).getMinutes()
+      );
+      
+      // Create a reminder date based on the reminderTime setting
+      const reminderDate = new Date(appointmentDateTime);
+      reminderDate.setHours(reminderDate.getHours() - parseInt(reminders.reminderTime));
+      
+      const firestoreAppointment = {
+        userId: currentUser.uid,
+        patientName: userData?.name || currentUser.email,
+        doctorId: parseInt(formData.doctorId),
+        doctorName: selectedDoctor.name,
+        doctorSpecialty: selectedDoctor.specialization,
+        appointmentDate: appointmentDateTime,
+        reason: formData.reason || 'General Checkup',
+        status: 'Scheduled',
+        createdAt: new Date(),
+        reminders: {
+          email: reminders.email,
+          sms: reminders.sms,
+          reminderDate: reminderDate,
+          reminderSent: false
+        },
+        contactInfo: {
+          email: userData?.email || currentUser.email,
+          phone: userData?.phone || ''
+        }
+      };
+      
+      await addDoc(collection(db, "appointments"), firestoreAppointment);
+      
+      // Send confirmation message
+      if (reminders.email || reminders.sms) {
+        const reminderMessage = `
+📅 Appointment Confirmation
+
+You have scheduled an appointment with ${selectedDoctor.name} on ${new Date(appointmentDateTime).toLocaleDateString()} at ${time}.
+
+${reminders.email ? '✓ Email reminder will be sent' : ''}
+${reminders.sms && userData?.phone ? '✓ SMS reminder will be sent' : ''}
+${
+  reminders.reminderTime === '24' 
+    ? '24 hours before your appointment' 
+    : reminders.reminderTime === '48' 
+      ? '48 hours before your appointment' 
+      : '1 hour before your appointment'
+}
+
+Thank you for choosing MediCare Pro!
+        `;
+        
+        // In a real app, this would send an actual email/SMS
+        console.log('Confirmation message:', reminderMessage);
+      }
 
       setSuccess(true);
+      setSnackbar({
+        open: true,
+        message: "Appointment booked successfully! Reminders have been set.",
+        severity: "success"
+      });
       
       // Show success message for a moment before redirecting
       setTimeout(() => {
         navigate('/appointments');
-      }, 1500);
+      }, 2000);
     } catch (err) {
       setError('Failed to book appointment. Please try again.');
       console.error('Appointment booking error:', err);
+      
+      setSnackbar({
+        open: true,
+        message: "Failed to book appointment. Please try again.",
+        severity: "error"
+      });
     } finally {
       setLoading(false);
     }
@@ -122,6 +232,21 @@ const BookAppointment = () => {
     }));
   };
 
+  const handleReminderChange = (e) => {
+    const { name, checked, value } = e.target;
+    setReminders(prev => ({
+      ...prev,
+      [name]: name === 'reminderTime' ? value : checked
+    }));
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({
+      ...prev,
+      open: false
+    }));
+  };
+
   return (
     <Container maxWidth="md">
       <Box sx={{ py: 4 }}>
@@ -129,8 +254,8 @@ const BookAppointment = () => {
           elevation={0}
           sx={{ 
             p: 4, 
-            borderRadius: '16px',
-            border: '1px solid rgba(0, 0, 0, 0.1)',
+            borderRadius: '8px',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
           }}
         >
           <Typography
@@ -161,7 +286,7 @@ const BookAppointment = () => {
                   label="Select Doctor"
                   value={formData.doctorId}
                   onChange={handleChange}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                 >
                   {doctors.map((doctor) => (
                     <MenuItem key={doctor.id} value={doctor.id}>
@@ -189,7 +314,7 @@ const BookAppointment = () => {
                       sx: { 
                         width: '100%',
                         '& .MuiOutlinedInput-root': { 
-                          borderRadius: '12px' 
+                          borderRadius: '8px' 
                         } 
                       }
                     }
@@ -214,7 +339,7 @@ const BookAppointment = () => {
                       sx: { 
                         width: '100%',
                         '& .MuiOutlinedInput-root': { 
-                          borderRadius: '12px' 
+                          borderRadius: '8px' 
                         } 
                       }
                     }
@@ -231,47 +356,117 @@ const BookAppointment = () => {
                   label="Reason for Visit"
                   value={formData.reason}
                   onChange={handleChange}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                  placeholder="Please describe your symptoms or reason for consultation"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                 />
               </Grid>
-
+              
               <Grid item xs={12}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  fullWidth
-                  disabled={loading}
-                  sx={{
-                    mt: 2,
-                    py: 1.5,
-                    backgroundColor: '#ff3366',
-                    borderRadius: '12px',
-                    textTransform: 'none',
-                    fontSize: '1.1rem',
-                    '&:hover': {
-                      backgroundColor: '#e62e5c'
+                <Divider sx={{ my: 1 }} />
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <NotificationsActiveIcon sx={{ mr: 1, color: '#ff3366' }} />
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Appointment Reminders
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch 
+                        checked={reminders.email} 
+                        onChange={handleReminderChange} 
+                        name="email" 
+                        color="primary"
+                      />
                     }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <EmailIcon fontSize="small" sx={{ mr: 0.5 }} />
+                        <Typography variant="body2">Email Reminder</Typography>
+                      </Box>
+                    }
+                  />
+                  
+                  <FormControlLabel
+                    control={
+                      <Switch 
+                        checked={reminders.sms} 
+                        onChange={handleReminderChange} 
+                        name="sms" 
+                        color="primary"
+                        disabled={!userData?.phone}
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <SmsIcon fontSize="small" sx={{ mr: 0.5 }} />
+                        <Typography variant="body2">
+                          SMS Reminder {!userData?.phone && "(Add phone number in profile)"}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Box>
+                
+                <TextField
+                  select
+                  fullWidth
+                  name="reminderTime"
+                  label="Remind me"
+                  value={reminders.reminderTime}
+                  onChange={handleReminderChange}
+                  disabled={!reminders.email && !reminders.sms}
+                  sx={{ 
+                    '& .MuiOutlinedInput-root': { borderRadius: '8px' },
+                    maxWidth: '400px'
                   }}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Book Appointment'}
-                </Button>
+                  <MenuItem value="1">1 hour before appointment</MenuItem>
+                  <MenuItem value="24">24 hours before appointment</MenuItem>
+                  <MenuItem value="48">48 hours before appointment</MenuItem>
+                </TextField>
               </Grid>
             </Grid>
+
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={() => navigate(-1)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={loading}
+                sx={{
+                  bgcolor: '#ff3366',
+                  '&:hover': { bgcolor: '#e62e5c' }
+                }}
+              >
+                {loading ? <CircularProgress size={24} /> : 'Book Appointment'}
+              </Button>
+            </Box>
           </Box>
         </Paper>
       </Box>
-
+      
       <Snackbar
-        open={success}
+        open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setSuccess(false)}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert 
-          onClose={() => setSuccess(false)} 
-          severity="success"
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          variant="filled"
           sx={{ width: '100%' }}
         >
-          Appointment booked successfully! Redirecting to appointments...
+          {snackbar.message}
         </Alert>
       </Snackbar>
     </Container>

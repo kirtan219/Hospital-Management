@@ -18,6 +18,7 @@ import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import MedicineIcon from '@mui/icons-material/Medication';
+import ScienceIcon from '@mui/icons-material/Science';
 import theme from './theme';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
@@ -26,6 +27,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import AuthRedirect from './components/AuthRedirect';
+import FeedbackRating from './components/FeedbackRating';
 
 // Import pages
 import Home from './pages/Home';
@@ -41,6 +43,7 @@ import NotFound from './pages/NotFound';
 import SignUp from './pages/SignUp';
 import HealthMonitoring from './pages/HealthMonitoring';
 import MedicineFinder from './pages/MedicineFinder';
+import LabTests from './pages/LabTests';
 
 // Custom pill icon based on the provided image - oval pill shape
 const PillIcon = (props) => (
@@ -163,6 +166,18 @@ const NavBar = () => {
               <PillIcon sx={{ mr: 0.5 }} />
               Medicine Finder
             </Button>
+            <Button
+              component={RouterLink}
+              to="/lab-tests"
+              sx={{
+                color: '#444',
+                fontWeight: 600,
+                '&:hover': { color: '#ff3366' }
+              }}
+            >
+              <ScienceIcon sx={{ mr: 0.5 }} />
+              Lab Tests
+            </Button>
           </Stack>
 
           {/* Auth Buttons */}
@@ -271,9 +286,15 @@ const AppContent = () => {
               <MedicineFinder />
             </ProtectedRoute>
           } />
+          <Route path="/lab-tests" element={
+            <ProtectedRoute>
+              <LabTests />
+            </ProtectedRoute>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Container>
+      {currentUser && <FeedbackRating />}
     </Box>
   );
 };

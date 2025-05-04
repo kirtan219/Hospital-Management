@@ -295,10 +295,16 @@ const MedicineSearch = () => {
               Recommended Medications:
             </Typography>
             
-            <List sx={{ bgcolor: 'background.paper', borderRadius: 2, mb: 3, border: '1px solid rgba(0,0,0,0.08)' }}>
+            <List sx={{ 
+              bgcolor: 'background.paper', 
+              borderRadius: '8px', 
+              mb: 3, 
+              border: '1px solid rgba(0,0,0,0.08)',
+              overflow: 'hidden'
+            }}>
               {selectedSymptom.medicines.map((medicine, index) => (
                 <React.Fragment key={medicine}>
-                  <ListItem alignItems="flex-start">
+                  <ListItem alignItems="flex-start" sx={{ px: 3 }}>
                     <ListItemText 
                       primary={
                         <Typography variant="subtitle1" fontWeight={500}>
@@ -307,7 +313,7 @@ const MedicineSearch = () => {
                       } 
                       secondary={
                         index === 0 ? 
-                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5, pb: 0.5 }}>
                           <strong>Dosage:</strong> {selectedSymptom.dosage}
                         </Typography> : 
                         'Alternative medication option'

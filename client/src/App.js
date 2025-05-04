@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Navigate, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { 
@@ -10,18 +10,22 @@ import {
   Container, 
   Button, 
   Stack,
-  useTheme 
+  useTheme,
+  SvgIcon
 } from '@mui/material';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import MedicineIcon from '@mui/icons-material/Medication';
 import theme from './theme';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
 import UserMenu from './components/UserMenu';
+import ProtectedRoute from './components/ProtectedRoute';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import AuthRedirect from './components/AuthRedirect';
 
 // Import pages
 import Home from './pages/Home';
@@ -36,14 +40,25 @@ import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import SignUp from './pages/SignUp';
 import HealthMonitoring from './pages/HealthMonitoring';
+import MedicineFinder from './pages/MedicineFinder';
+
+// Custom pill icon based on the provided image - oval pill shape
+const PillIcon = (props) => (
+  <SvgIcon {...props} viewBox="0 0 24 24">
+    <path d="M20,12c0,2.76-2.24,5-5,5H9c-2.76,0-5-2.24-5-5s2.24-5,5-5h6C17.76,7,20,9.24,20,12z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    <line x1="12" y1="7" x2="12" y2="17" stroke="currentColor" strokeWidth="1.5" />
+  </SvgIcon>
+);
 
 const NavBar = () => {
   const { currentUser, logout } = useAuth();
   const theme = useTheme();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
       await logout();
+      navigate('/login');
     } catch (error) {
       console.error('Failed to log out:', error);
     }
@@ -63,8 +78,8 @@ const NavBar = () => {
           {/* Logo/Brand */}
           <Typography
             variant="h5"
-            component={Link}
-            to="/"
+            component={RouterLink}
+            to="/dashboard"
             sx={{
               fontWeight: 800,
               color: '#111',
@@ -74,7 +89,7 @@ const NavBar = () => {
               alignItems: 'center',
             }}
           >
-            <LocalHospitalIcon sx={{ mr: 1, color: '#ff3366' }} />
+            <MedicineIcon sx={{ mr: 1, color: '#ff3366' }} />
             MediCare Pro
           </Typography>
 
@@ -89,7 +104,7 @@ const NavBar = () => {
             }}
           >
             <Button
-              component={Link}
+              component={RouterLink}
               to="/doctors"
               sx={{
                 color: '#444',
@@ -101,7 +116,7 @@ const NavBar = () => {
               Doctors
             </Button>
             <Button
-              component={Link}
+              component={RouterLink}
               to="/appointments"
               sx={{
                 color: '#444',
@@ -113,7 +128,7 @@ const NavBar = () => {
               Appointments
             </Button>
             <Button
-              component={Link}
+              component={RouterLink}
               to="/patients"
               sx={{
                 color: '#444',
@@ -125,7 +140,7 @@ const NavBar = () => {
               Patients
             </Button>
             <Button
-              component={Link}
+              component={RouterLink}
               to="/health-monitoring"
               sx={{
                 color: '#444',
@@ -135,6 +150,18 @@ const NavBar = () => {
             >
               <MonitorHeartIcon sx={{ mr: 0.5 }} />
               Health Monitoring
+            </Button>
+            <Button
+              component={RouterLink}
+              to="/medicine-finder"
+              sx={{
+                color: '#444',
+                fontWeight: 600,
+                '&:hover': { color: '#ff3366' }
+              }}
+            >
+              <PillIcon sx={{ mr: 0.5 }} />
+              Medicine Finder
             </Button>
           </Stack>
 
@@ -148,46 +175,106 @@ const NavBar = () => {
           >
             {currentUser ? (
               <UserMenu />
-            ) : (
-              <>
-                <Button
-                  component={Link}
-                  to="/login"
-                  sx={{
-                    color: '#ff3366',
-                    fontWeight: 600,
-                    borderRadius: '50px',
-                    px: 3,
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 51, 102, 0.08)'
-                    }
-                  }}
-                >
-                  Sign In
-                </Button>
-                <Button
-                  component={Link}
-                  to="/signup"
-                  variant="contained"
-                  sx={{
-                    backgroundColor: '#ff3366',
-                    color: '#fff',
-                    fontWeight: 600,
-                    borderRadius: '50px',
-                    px: 3,
-                    '&:hover': {
-                      backgroundColor: '#e62e5c'
-                    }
-                  }}
-                >
-                  Get Started
-                </Button>
-              </>
-            )}
+            ) : null}
           </Stack>
         </Toolbar>
       </Container>
     </AppBar>
+  );
+};
+
+// Move NavBar inside a functional component that can use hooks
+const AppContent = () => {
+  const { currentUser } = useAuth();
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
+      {/* Only show NavBar for authenticated users */}
+      {currentUser && <NavBar />}
+      <Container 
+        component="main" 
+        maxWidth={currentUser ? "lg" : "100%"}
+        disableGutters={!currentUser}
+        sx={{ 
+          flex: 1,
+          py: currentUser ? 4 : 0,
+          backgroundColor: '#ffffff',
+        }}
+      >
+        <Routes>
+          <Route path="/login" element={
+            <AuthRedirect>
+              <Login />
+            </AuthRedirect>
+          } />
+          <Route path="/signup" element={
+            <AuthRedirect>
+              <SignUp />
+            </AuthRedirect>
+          } />
+          <Route path="/" element={
+            currentUser ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          } />
+          
+          {/* Protected Routes */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          } />
+          <Route path="/doctors" element={
+            <ProtectedRoute>
+              <Doctors />
+            </ProtectedRoute>
+          } />
+          <Route path="/doctors/:id" element={
+            <ProtectedRoute>
+              <DoctorDetails />
+            </ProtectedRoute>
+          } />
+          <Route path="/appointments" element={
+            <ProtectedRoute>
+              <Appointments />
+            </ProtectedRoute>
+          } />
+          <Route path="/book-appointment" element={
+            <ProtectedRoute>
+              <BookAppointment />
+            </ProtectedRoute>
+          } />
+          <Route path="/patients" element={
+            <ProtectedRoute>
+              <Patients />
+            </ProtectedRoute>
+          } />
+          <Route path="/patients/add" element={
+            <ProtectedRoute>
+              <PatientRegister />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <PatientProfile />
+            </ProtectedRoute>
+          } />
+          <Route path="/health-monitoring" element={
+            <ProtectedRoute>
+              <HealthMonitoring />
+            </ProtectedRoute>
+          } />
+          <Route path="/medicine-finder" element={
+            <ProtectedRoute>
+              <MedicineFinder />
+            </ProtectedRoute>
+          } />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Container>
+    </Box>
   );
 };
 
@@ -197,33 +284,7 @@ const App = () => {
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <CssBaseline />
         <AuthProvider>
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#ffffff' }}>
-            <NavBar />
-            <Container 
-              component="main" 
-              maxWidth="lg" 
-              sx={{ 
-                flex: 1,
-                py: 4,
-                backgroundColor: '#ffffff',
-              }}
-            >
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/doctors" element={<Doctors />} />
-                <Route path="/doctors/:id" element={<DoctorDetails />} />
-                <Route path="/appointments" element={<Appointments />} />
-                <Route path="/book-appointment" element={<BookAppointment />} />
-                <Route path="/signup" element={<SignUp />} />
-                <Route path="/profile" element={<PatientProfile />} />
-                <Route path="/patients" element={<Patients />} />
-                <Route path="/patients/add" element={<PatientRegister />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/health-monitoring" element={<HealthMonitoring />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Container>
-          </Box>
+          <AppContent />
         </AuthProvider>
       </LocalizationProvider>
     </ThemeProvider>

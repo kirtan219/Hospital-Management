@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -8,73 +9,20 @@ import {
   Paper,
   Alert,
   Divider,
-  Link,
+  Link
 } from '@mui/material';
-import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import GoogleIcon from '@mui/icons-material/Google';
-import { 
-  getAuth, 
-  isSignInWithEmailLink, 
-  signInWithEmailLink 
-} from 'firebase/auth';
-import {
-  getStoredEmail,
-  clearStoredEmail,
-  setupAuthPersistence,
-} from '../utils/authUtils';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { login, signInWithGoogle } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
+    password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const { login, signInWithGoogle } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const auth = getAuth();
-
-  useEffect(() => {
-    // Set up auth persistence
-    setupAuthPersistence().catch(console.error);
-
-    // Check if the URL is an email sign-in link
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      handleEmailLinkSignIn();
-    }
-  }, []);
-
-  const handleEmailLinkSignIn = async () => {
-    setLoading(true);
-    try {
-      // Get the email from storage
-      let email = getStoredEmail();
-      
-      if (!email) {
-        // If email is not found in storage, prompt the user
-        email = window.prompt('Please provide your email for confirmation');
-      }
-
-      if (email) {
-        // Complete the email link sign-in
-        await signInWithEmailLink(auth, email, window.location.href);
-        clearStoredEmail();
-        setMessage('Successfully signed in!');
-        
-        // Redirect to the intended page or home
-        const redirectTo = location.state?.from || '/';
-        navigate(redirectTo);
-      }
-    } catch (error) {
-      console.error('Email link sign-in error:', error);
-      setError('Failed to complete sign-in. ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -86,18 +34,15 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setError('');
+    setLoading(true);
+
     try {
-      setError('');
-      setLoading(true);
       await login(formData.email, formData.password);
-      
-      // Redirect to the intended page or home
-      const redirectTo = location.state?.from || '/';
-      navigate(redirectTo);
-    } catch (error) {
-      setError('Failed to sign in. ' + error.message);
-      console.error('Login error:', error);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Failed to sign in. Please check your credentials.');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -105,18 +50,11 @@ const Login = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      setError('');
-      setLoading(true);
       await signInWithGoogle();
-      
-      // Redirect to the intended page or home
-      const redirectTo = location.state?.from || '/';
-      navigate(redirectTo);
-    } catch (error) {
-      setError('Failed to sign in with Google. ' + error.message);
-      console.error('Google sign in error:', error);
-    } finally {
-      setLoading(false);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Failed to sign in with Google.');
+      console.error('Google sign-in error:', err);
     }
   };
 
@@ -124,144 +62,144 @@ const Login = () => {
     <Container maxWidth="sm">
       <Box
         sx={{
-          marginTop: 8,
-          marginBottom: 8,
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
+          justifyContent: 'center',
+          py: 4
         }}
       >
         <Paper
-          elevation={0}
+          elevation={3}
           sx={{
             p: 4,
-            width: '100%',
             borderRadius: '16px',
-            border: '1px solid rgba(0, 0, 0, 0.1)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <Typography
-            component="h1"
-            variant="h4"
-            sx={{
-              mb: 4,
-              fontWeight: 700,
-              textAlign: 'center',
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center',
+              mb: 3
             }}
           >
-            Sign In
-          </Typography>
+            <LocalHospitalIcon 
+              sx={{ 
+                color: '#ff3366', 
+                fontSize: 48, 
+                mb: 2 
+              }} 
+            />
+            <Typography
+              variant="h4"
+              component="h1"
+              align="center"
+              sx={{
+                fontWeight: 'bold',
+                color: '#333',
+              }}
+            >
+              MediCare Pro
+            </Typography>
+            <Typography
+              variant="subtitle1"
+              align="center"
+              sx={{
+                color: 'text.secondary',
+                mb: 2
+              }}
+            >
+              Hospital Management System
+            </Typography>
+          </Box>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
+            <Alert severity="error" sx={{ mb: 3 }}>
               {error}
             </Alert>
           )}
 
-          {message && (
-            <Alert severity="success" sx={{ mb: 3, borderRadius: '8px' }}>
-              {message}
-            </Alert>
-          )}
-
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            startIcon={<GoogleIcon />}
-            sx={{
-              mb: 3,
-              py: 1.5,
-              borderRadius: '50px',
-              borderColor: 'rgba(0, 0, 0, 0.1)',
-              color: '#333',
-              '&:hover': {
-                borderColor: '#ff3366',
-                backgroundColor: 'rgba(255, 51, 102, 0.08)',
-              },
-            }}
-          >
-            Continue with Google
-          </Button>
-
-          <Divider sx={{ mb: 3 }}>
-            <Typography color="text.secondary" variant="body2">
-              OR
-            </Typography>
-          </Divider>
-
-          <Box component="form" onSubmit={handleSubmit}>
+          <Box component="form" onSubmit={handleSubmit} sx={{ mb: 3 }}>
             <TextField
-              required
               fullWidth
-              label="Email Address"
-              type="email"
+              label="Email"
               name="email"
-              autoComplete="email"
+              type="email"
               value={formData.email}
               onChange={handleChange}
-              sx={{
-                mb: 2,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                },
-              }}
+              required
+              sx={{ mb: 2 }}
             />
             <TextField
-              required
               fullWidth
               label="Password"
-              type="password"
               name="password"
+              type="password"
               value={formData.password}
               onChange={handleChange}
-              sx={{
-                mb: 3,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                },
-              }}
+              required
+              sx={{ mb: 3 }}
             />
             <Button
-              type="submit"
               fullWidth
               variant="contained"
+              type="submit"
               disabled={loading}
               sx={{
                 py: 1.5,
-                fontSize: '1rem',
-                fontWeight: 600,
-                borderRadius: '50px',
-                backgroundColor: '#ff3366',
-                '&:hover': {
-                  backgroundColor: '#e62e5c',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 6px 20px rgba(255, 51, 102, 0.4)',
-                },
-                transition: 'all 0.2s ease-in-out',
+                borderRadius: '8px',
+                bgcolor: '#ff3366',
+                '&:hover': { bgcolor: '#e6005c' },
+                textTransform: 'none',
+                fontSize: '1rem'
               }}
             >
               Sign In
             </Button>
           </Box>
 
+          <Divider sx={{ my: 3 }}>
+            <Typography variant="body2" color="text.secondary">
+              OR
+            </Typography>
+          </Divider>
+
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={handleGoogleSignIn}
+            sx={{
+              py: 1.5,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontSize: '1rem',
+              borderColor: '#4285F4',
+              color: '#4285F4',
+              '&:hover': {
+                borderColor: '#3367D6',
+                backgroundColor: 'rgba(66, 133, 244, 0.04)'
+              }
+            }}
+          >
+            Continue with Google
+          </Button>
+
           <Box sx={{ mt: 3, textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
               Don't have an account?{' '}
               <Link
-                component={RouterLink}
-                to="/signup"
+                component="button"
+                variant="body2"
+                onClick={() => navigate('/signup')}
                 sx={{
                   color: '#ff3366',
                   textDecoration: 'none',
-                  fontWeight: 600,
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
+                  '&:hover': { textDecoration: 'underline' }
                 }}
               >
-                Sign up here
+                Sign Up
               </Link>
             </Typography>
           </Box>

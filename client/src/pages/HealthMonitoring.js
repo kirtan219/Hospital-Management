@@ -1,118 +1,71 @@
 import React, { useState } from 'react';
 import {
-  Container,
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Divider,
-  Alert,
+  Container, Box, Typography, Grid, Card, CardContent, TextField, Button, IconButton,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+  Divider, Alert
 } from '@mui/material';
 import {
-  FavoriteOutlined as HeartIcon,
-  LocalHospital as PressureIcon,
-  Thermostat as TempIcon,
-  Speed as GlucoseIcon,
-  Scale as WeightIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
+  FavoriteOutlined, LocalHospital, Thermostat, Speed, Scale,
+  Add as AddIcon, Delete as DeleteIcon, Person as PersonIcon
 } from '@mui/icons-material';
+
+const inputFields = [
+  { name: 'name', label: 'Patient Name', unit: '', icon: <PersonIcon sx={{ color: '#ff3366' }} /> },
+  { name: 'heartRate', label: 'Heart Rate', unit: 'BPM', icon: <FavoriteOutlined sx={{ color: '#ff3366' }} /> },
+  { name: 'bloodPressure', label: 'Blood Pressure', unit: 'mmHg', icon: <LocalHospital sx={{ color: '#ff3366' }} /> },
+  { name: 'temperature', label: 'Temperature', unit: '°C', icon: <Thermostat sx={{ color: '#ff3366' }} /> },
+  { name: 'glucoseLevel', label: 'Glucose Level', unit: 'mg/dL', icon: <Speed sx={{ color: '#ff3366' }} /> },
+  { name: 'weight', label: 'Weight', unit: 'kg', icon: <Scale sx={{ color: '#ff3366' }} /> },
+];
 
 const HealthMonitoring = () => {
   const [vitalSigns, setVitalSigns] = useState({
-    heartRate: '',
-    bloodPressure: '',
-    temperature: '',
-    glucoseLevel: '',
-    weight: '',
+    name: '',
+    heartRate: '', 
+    bloodPressure: '', 
+    temperature: '', 
+    glucoseLevel: '', 
+    weight: ''
   });
-
   const [records, setRecords] = useState([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [message, setMessage] = useState({ type: '', text: '' });
 
-  const handleInputChange = (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setVitalSigns(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setVitalSigns(prev => ({ ...prev, [name]: value }));
+  };
+
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Basic validation
-    if (!vitalSigns.heartRate || !vitalSigns.bloodPressure || !vitalSigns.temperature) {
-      setError('Please fill in all required fields');
+    const { name, heartRate, bloodPressure, temperature } = vitalSigns;
+    if (!name || !heartRate || !bloodPressure || !temperature) {
+      showMessage('error', 'Please fill in all required fields including name.');
       return;
     }
 
-    // Add new record with timestamp
-    const newRecord = {
-      ...vitalSigns,
-      timestamp: new Date().toLocaleString(),
-      id: Date.now(),
-    };
-
-    setRecords(prev => [newRecord, ...prev]);
-    setSuccess('Health metrics recorded successfully!');
-    
-    // Reset form
-    setVitalSigns({
-      heartRate: '',
-      bloodPressure: '',
-      temperature: '',
-      glucoseLevel: '',
-      weight: '',
+    setRecords(prev => [
+      { ...vitalSigns, id: Date.now(), timestamp: new Date().toLocaleString() },
+      ...prev
+    ]);
+    setVitalSigns({ 
+      name: '',
+      heartRate: '', 
+      bloodPressure: '', 
+      temperature: '', 
+      glucoseLevel: '', 
+      weight: '' 
     });
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSuccess('');
-    }, 3000);
+    showMessage('success', 'Health metrics recorded successfully!');
   };
 
   const handleDelete = (id) => {
     setRecords(prev => prev.filter(record => record.id !== id));
   };
-
-  const VitalSignCard = ({ icon, title, unit, name, value }) => (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          {icon}
-          <Typography variant="h6" sx={{ ml: 1 }}>
-            {title}
-          </Typography>
-        </Box>
-        <TextField
-          fullWidth
-          label={`Enter ${title}`}
-          name={name}
-          value={value}
-          onChange={handleInputChange}
-          variant="outlined"
-          placeholder={`Enter ${title} ${unit}`}
-          sx={{ mb: 1 }}
-        />
-        <Typography variant="caption" color="text.secondary">
-          Unit: {unit}
-        </Typography>
-      </CardContent>
-    </Card>
-  );
 
   return (
     <Container maxWidth="lg">
@@ -121,64 +74,39 @@ const HealthMonitoring = () => {
           Health Monitoring
         </Typography>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-
-        {success && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            {success}
+        {message.text && (
+          <Alert severity={message.type} sx={{ mb: 3 }}>
+            {message.text}
           </Alert>
         )}
 
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <VitalSignCard
-              icon={<HeartIcon sx={{ color: '#ff3366' }} />}
-              title="Heart Rate"
-              unit="BPM"
-              name="heartRate"
-              value={vitalSigns.heartRate}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <VitalSignCard
-              icon={<PressureIcon sx={{ color: '#ff3366' }} />}
-              title="Blood Pressure"
-              unit="mmHg"
-              name="bloodPressure"
-              value={vitalSigns.bloodPressure}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <VitalSignCard
-              icon={<TempIcon sx={{ color: '#ff3366' }} />}
-              title="Temperature"
-              unit="°C"
-              name="temperature"
-              value={vitalSigns.temperature}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <VitalSignCard
-              icon={<GlucoseIcon sx={{ color: '#ff3366' }} />}
-              title="Glucose Level"
-              unit="mg/dL"
-              name="glucoseLevel"
-              value={vitalSigns.glucoseLevel}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <VitalSignCard
-              icon={<WeightIcon sx={{ color: '#ff3366' }} />}
-              title="Weight"
-              unit="kg"
-              name="weight"
-              value={vitalSigns.weight}
-            />
-          </Grid>
+          {inputFields.map(({ name, label, unit, icon }) => (
+            <Grid item xs={12} sm={6} md={4} key={name}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    {icon}
+                    <Typography variant="h6" sx={{ ml: 1 }}>{label}</Typography>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    variant="outlined"
+                    label={`Enter ${label}`}
+                    name={name}
+                    value={vitalSigns[name]}
+                    onChange={handleChange}
+                    placeholder={name === 'name' ? "Enter patient's full name" : `Enter ${label} ${unit ? `(${unit})` : ''}`}
+                    required={['name', 'heartRate', 'bloodPressure', 'temperature'].includes(name)}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    {unit ? `Unit: ${unit} ` : ''}
+                    {['name', 'heartRate', 'bloodPressure', 'temperature'].includes(name) && '(Required)'}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
         </Grid>
 
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
@@ -187,10 +115,7 @@ const HealthMonitoring = () => {
             startIcon={<AddIcon />}
             onClick={handleSubmit}
             sx={{
-              backgroundColor: '#ff3366',
-              px: 4,
-              py: 1.5,
-              borderRadius: '50px',
+              backgroundColor: '#ff3366', px: 4, py: 1.5, borderRadius: '50px',
               '&:hover': {
                 backgroundColor: '#e62e5c',
                 transform: 'translateY(-2px)',
@@ -214,6 +139,7 @@ const HealthMonitoring = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Date & Time</TableCell>
+                <TableCell>Patient Name</TableCell>
                 <TableCell>Heart Rate</TableCell>
                 <TableCell>Blood Pressure</TableCell>
                 <TableCell>Temperature</TableCell>
@@ -223,27 +149,26 @@ const HealthMonitoring = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {records.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell>{record.timestamp}</TableCell>
-                  <TableCell>{record.heartRate} BPM</TableCell>
-                  <TableCell>{record.bloodPressure} mmHg</TableCell>
-                  <TableCell>{record.temperature} °C</TableCell>
-                  <TableCell>{record.glucoseLevel || '-'} mg/dL</TableCell>
-                  <TableCell>{record.weight || '-'} kg</TableCell>
-                  <TableCell>
-                    <IconButton
-                      onClick={() => handleDelete(record.id)}
-                      sx={{ color: '#ff3366' }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {records.length === 0 && (
+              {records.length > 0 ? (
+                records.map((record) => (
+                  <TableRow key={record.id}>
+                    <TableCell>{record.timestamp}</TableCell>
+                    <TableCell><strong>{record.name}</strong></TableCell>
+                    <TableCell>{record.heartRate} BPM</TableCell>
+                    <TableCell>{record.bloodPressure} mmHg</TableCell>
+                    <TableCell>{record.temperature} °C</TableCell>
+                    <TableCell>{record.glucoseLevel || '-'} mg/dL</TableCell>
+                    <TableCell>{record.weight || '-'} kg</TableCell>
+                    <TableCell>
+                      <IconButton onClick={() => handleDelete(record.id)} sx={{ color: '#ff3366' }}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
+                  <TableCell colSpan={8} align="center">
                     <Typography color="text.secondary">
                       No records found. Start monitoring your health by adding vital signs above.
                     </Typography>
@@ -258,4 +183,4 @@ const HealthMonitoring = () => {
   );
 };
 
-export default HealthMonitoring; 
+export default HealthMonitoring;

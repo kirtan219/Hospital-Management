@@ -36,8 +36,6 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '../utils/dateUtils';
-import { db } from '../firebase';
-import { collection, getDocs, query, where, updateDoc, doc, addDoc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 
 // Dummy data for appointments
@@ -119,6 +117,43 @@ const generateInvoiceItems = (appointment) => {
   return items;
 };
 
+// Mock database functions
+const localStorageDB = {
+  saveAppointments: (appointments) => {
+    localStorage.setItem('appointments', JSON.stringify(appointments));
+  },
+  getAppointments: () => {
+    try {
+      const savedData = localStorage.getItem('appointments');
+      return savedData ? JSON.parse(savedData) : [];
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+      return [];
+    }
+  },
+  updateAppointment: (appointmentId, updates) => {
+    const appointments = localStorageDB.getAppointments();
+    const index = appointments.findIndex(a => a.id.toString() === appointmentId.toString());
+    
+    if (index !== -1) {
+      appointments[index] = { ...appointments[index], ...updates };
+      localStorageDB.saveAppointments(appointments);
+      return appointments[index];
+    }
+    return null;
+  },
+  addAppointment: (appointmentData) => {
+    const appointments = localStorageDB.getAppointments();
+    const newAppointment = {
+      id: Date.now().toString(),
+      ...appointmentData
+    };
+    appointments.push(newAppointment);
+    localStorageDB.saveAppointments(appointments);
+    return newAppointment;
+  }
+};
+
 const Appointments = () => {
   const [appointments, setAppointments] = useState([]);
   const [selectedTab, setSelectedTab] = useState(0);
@@ -138,59 +173,34 @@ const Appointments = () => {
     const fetchAppointments = async () => {
       setLoading(true);
       try {
-        // First try to fetch from Firebase
-        if (currentUser) {
-          const q = query(
-            collection(db, "appointments"),
-            where("userId", "==", currentUser.uid)
-          );
-          
-          const querySnapshot = await getDocs(q);
-          const firestoreAppointments = [];
-          
-          querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            firestoreAppointments.push({
-              id: doc.id,
-              doctor: data.doctorName,
-              date: data.appointmentDate ? new Date(data.appointmentDate.seconds * 1000).toISOString().split('T')[0] : '',
-              time: data.appointmentDate ? new Date(data.appointmentDate.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '',
-              type: data.reason || 'Consultation',
-              status: data.status || 'Upcoming',
-              hasBill: data.billing?.invoiceGenerated || false,
-              billAmount: data.billing?.amount || 0,
-              billPaid: data.billing?.paid || false,
-              billing: data.billing || null
-            });
-          });
-          
-          if (firestoreAppointments.length > 0) {
-            setAppointments(firestoreAppointments);
-            setLoading(false);
-            return;
-          }
-        }
+        // Get appointments from localStorage
+        const storedAppointments = localStorageDB.getAppointments();
         
-        // Fallback to localStorage if no Firebase data
-        try {
-          const savedAppointments = localStorage.getItem('appointments');
-          if (savedAppointments) {
-            const parsed = JSON.parse(savedAppointments);
-            // Add billing info to local storage appointments if not present
-            const enhanced = parsed.map(app => ({
-              ...app,
-              hasBill: app.hasBill !== undefined ? app.hasBill : (app.status === 'Completed'),
-              billAmount: app.billAmount || Math.floor(Math.random() * 150) + 50,
-              billPaid: app.billPaid || false
-            }));
-            setAppointments(enhanced);
+        if (storedAppointments && storedAppointments.length > 0) {
+          // Filter by current user if we have one
+          const filteredAppointments = currentUser 
+            ? storedAppointments.filter(app => app.userId === currentUser.uid)
+            : storedAppointments;
+            
+          if (filteredAppointments.length > 0) {
+            setAppointments(filteredAppointments);
           } else {
-            // Use dummy data as last resort
+            // Use dummy data if no appointments for this user
             setAppointments(dummyAppointments);
+            // Save dummy data for this user
+            if (currentUser) {
+              const enhancedDummy = dummyAppointments.map(app => ({
+                ...app,
+                userId: currentUser.uid
+              }));
+              localStorageDB.saveAppointments(enhancedDummy);
+            }
           }
-        } catch (error) {
-          console.error('Error loading appointments from localStorage:', error);
+        } else {
+          // No appointments in storage, use dummy data
           setAppointments(dummyAppointments);
+          // Save dummy data
+          localStorageDB.saveAppointments(dummyAppointments);
         }
       } catch (error) {
         console.error('Error fetching appointments:', error);
@@ -199,6 +209,8 @@ const Appointments = () => {
           message: 'Failed to load appointments',
           severity: 'error'
         });
+        // Fallback to dummy data
+        setAppointments(dummyAppointments);
       } finally {
         setLoading(false);
       }
@@ -232,31 +244,54 @@ const Appointments = () => {
   const handleSendInvoice = async (appointment) => {
     try {
       setLoading(true);
-      
-      // In a real app, this would trigger an email with the invoice
+      // Simulate sending email
       console.log(`Sending invoice for appointment ${appointment.id} to user email`);
       
-      // Update Firebase if the appointment exists there
-      if (appointment.id && appointment.id.length > 10) {  // Assuming Firebase IDs are longer
+      // Update localStorage if the appointment exists there
+      if (appointment.id) {
         // Generate invoice items if not already present
         const items = appointment.billing?.items || generateInvoiceItems(appointment);
         const total = items.reduce((sum, item) => sum + item.amount, 0);
         
-        // Update appointment in Firebase with billing info
-        const appointmentRef = doc(db, "appointments", appointment.id);
-        await updateDoc(appointmentRef, {
-          "billing.invoiceGenerated": true,
-          "billing.amount": total,
-          "billing.paid": appointment.billPaid,
-          "billing.items": items,
-          "billing.invoiceSent": true,
-          "billing.invoiceSentDate": Timestamp.now()
+        // Update appointment in localStorage with billing info
+        localStorageDB.updateAppointment(appointment.id, {
+          billing: {
+            invoiceGenerated: true,
+            amount: total,
+            paid: appointment.billPaid,
+            items: items,
+            invoiceSent: true,
+            invoiceSentDate: new Date().toISOString()
+          }
+        });
+        
+        // Update the local state
+        setAppointments(prevAppointments => {
+          return prevAppointments.map(app => {
+            if (app.id === appointment.id) {
+              return {
+                ...app,
+                hasBill: true,
+                billAmount: total,
+                billPaid: app.billPaid || false,
+                billing: {
+                  invoiceGenerated: true,
+                  amount: total,
+                  paid: app.billPaid || false,
+                  items: items,
+                  invoiceSent: true,
+                  invoiceSentDate: new Date().toISOString()
+                }
+              };
+            }
+            return app;
+          });
         });
       }
       
       setSnackbar({
         open: true,
-        message: 'Invoice has been sent to your email',
+        message: 'Invoice sent successfully!',
         severity: 'success'
       });
     } catch (error) {
@@ -324,33 +359,30 @@ const Appointments = () => {
     try {
       setLoading(true);
       
-      // Update the appointment status in Firebase
-      const appointmentRef = doc(db, "appointments", appointment.id);
-      await updateDoc(appointmentRef, {
+      // Update the appointment status in localStorage
+      localStorageDB.updateAppointment(appointment.id, {
         status: 'Cancelled',
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       });
       
-      // Update the local state
-      setAppointments(prevAppointments => 
-        prevAppointments.map(app => 
-          app.id === appointment.id 
-            ? { ...app, status: 'Cancelled' }
-            : app
+      // Update UI after cancellation
+      setAppointments(prev => 
+        prev.map(app => 
+          app.id === appointment.id ? { ...app, status: 'Cancelled' } : app
         )
       );
       
       setSnackbar({
         open: true,
-        message: "Appointment cancelled successfully",
-        severity: "success"
+        message: 'Appointment cancelled successfully',
+        severity: 'success'
       });
     } catch (error) {
       console.error('Error cancelling appointment:', error);
       setSnackbar({
         open: true,
-        message: "Failed to cancel appointment",
-        severity: "error"
+        message: 'Failed to cancel appointment',
+        severity: 'error'
       });
     } finally {
       setLoading(false);

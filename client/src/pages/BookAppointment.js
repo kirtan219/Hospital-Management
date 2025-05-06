@@ -30,8 +30,41 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import NotificationService from '../utils/notificationService';
-import { db } from '../firebase';
-import { collection, addDoc, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+
+// Mock database functions
+const localStorageDB = {
+  saveAppointments: (appointments) => {
+    localStorage.setItem('appointments', JSON.stringify(appointments));
+  },
+  getAppointments: () => {
+    try {
+      const savedData = localStorage.getItem('appointments');
+      return savedData ? JSON.parse(savedData) : [];
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+      return [];
+    }
+  },
+  addAppointment: (appointmentData) => {
+    const appointments = localStorageDB.getAppointments();
+    const newAppointment = {
+      id: Date.now().toString(),
+      ...appointmentData
+    };
+    appointments.push(newAppointment);
+    localStorageDB.saveAppointments(appointments);
+    return newAppointment;
+  },
+  getDoctors: () => {
+    try {
+      const savedData = localStorage.getItem('doctors');
+      return savedData ? JSON.parse(savedData) : [];
+    } catch (error) {
+      console.error('Error reading doctors from localStorage:', error);
+      return [];
+    }
+  }
+};
 
 const BookAppointment = () => {
   const [searchParams] = useSearchParams();
@@ -81,14 +114,32 @@ const BookAppointment = () => {
     
     const fetchUserData = async () => {
       try {
-        const usersQuery = query(
-          collection(db, "users"), 
-          where("userId", "==", currentUser.uid)
-        );
-        const querySnapshot = await getDocs(usersQuery);
-        querySnapshot.forEach((doc) => {
-          setUserData(doc.data());
-        });
+        // Try to get user data from localStorage
+        const usersData = localStorage.getItem('users');
+        if (usersData) {
+          const users = JSON.parse(usersData);
+          const user = users.find(u => u.userId === currentUser.uid);
+          if (user) {
+            setUserData(user);
+            return;
+          }
+        }
+        
+        // If no user found, create a basic user data object
+        const basicUserData = {
+          userId: currentUser.uid,
+          name: currentUser.displayName || 'User',
+          email: currentUser.email || '',
+          phone: ''
+        };
+        
+        // Save to localStorage for future use
+        const users = usersData ? JSON.parse(usersData) : [];
+        users.push(basicUserData);
+        localStorage.setItem('users', JSON.stringify(users));
+        
+        // Set the user data
+        setUserData(basicUserData);
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
@@ -143,17 +194,18 @@ const BookAppointment = () => {
       // Use the phone number input if provided
       const phoneNumber = phoneInput || userData?.phone || '';
       
-      // Create a new appointment in Firebase
-      const firestoreAppointment = {
-        userId: currentUser.uid,
-        patientName: userData?.name || currentUser.email,
-        doctorId: parseInt(formData.doctorId),
+      // Create appointment object
+      const appointmentData = {
+        userId: currentUser?.uid || 'guest-user',
+        doctorId: selectedDoctor.id,
         doctorName: selectedDoctor.name,
-        doctorSpecialty: selectedDoctor.specialization,
-        appointmentDate: appointmentDateTime,
+        doctorSpecialty: selectedDoctor.specialty,
+        patientName: userData?.name || currentUser?.displayName || 'Guest Patient',
         reason: formData.reason || 'General Checkup',
-        status: 'Scheduled',
-        createdAt: new Date(),
+        status: 'Upcoming',
+        appointmentDate: appointmentDateTime.toISOString(),
+        notes: formData.notes || '',
+        createdAt: new Date().toISOString(),
         reminders: {
           sms: reminders.sms,
           instantNotification: reminders.instantNotification,
@@ -161,20 +213,20 @@ const BookAppointment = () => {
           customMessage: customMessage || null
         },
         contactInfo: {
-          email: userData?.email || currentUser.email,
+          email: userData?.email || currentUser?.email || '',
           phone: phoneNumber
         }
       };
       
-      // Add to Firestore
-      const docRef = await addDoc(collection(db, "appointments"), firestoreAppointment);
+      // Add to localStorage
+      const newAppointment = localStorageDB.addAppointment(appointmentData);
       
       // Send instant SMS reminder if enabled and phone number available
       let smsResult = null;
       if (reminders.sms && phoneNumber) {
         // Create appointment details object
         const appointmentDetails = {
-          patientName: userData?.name || 'Patient',
+          patientName: userData?.name || currentUser?.displayName || 'Patient',
           doctor: selectedDoctor.name,
           reason: formData.reason || 'General Checkup',
           date: appointmentDateTime,

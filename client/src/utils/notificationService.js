@@ -1,5 +1,3 @@
-import { db } from '../firebase';
-import { collection, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import axios from 'axios';
 
 // MessageBird API configuration
@@ -11,6 +9,7 @@ const MESSAGEBIRD_CONFIG = {
 
 /**
  * Simple notification service focused only on SMS functionality
+ * Using localStorage instead of Firebase
  */
 class NotificationService {
   /**
@@ -26,7 +25,7 @@ class NotificationService {
    * @returns {Promise<Object>} MessageBird response or error
    */
   static async sendSMS(to, appointmentDetails, customMessage = null) {
-    let notificationRef;
+    let notificationId;
     try {
       // Format date and time for display
       const dateStr = appointmentDetails.date instanceof Date 
@@ -41,16 +40,23 @@ class NotificationService {
       const message = customMessage || 
         `Hello ${appointmentDetails.patientName || 'Patient'}, your ${appointmentDetails.reason || 'medical'} appointment is booked with ${appointmentDetails.doctor || 'your doctor'} on ${dateStr} at ${timeStr}. - MediCare Pro`;
       
-      // Record the SMS attempt in Firestore
-      notificationRef = await addDoc(collection(db, "notifications"), {
+      // Record the SMS attempt in localStorage
+      notificationId = Date.now().toString();
+      const notification = {
+        id: notificationId,
         type: 'sms',
         recipient: to,
         content: message,
         provider: 'messagebird',
         status: 'pending',
-        timestamp: Timestamp.now(),
+        timestamp: new Date().toISOString(),
         appointmentDetails
-      });
+      };
+      
+      // Get existing notifications or initialize empty array
+      const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+      existingNotifications.push(notification);
+      localStorage.setItem('notifications', JSON.stringify(existingNotifications));
 
       // In development, simulate API call
       if (process.env.NODE_ENV !== 'production') {
@@ -60,7 +66,7 @@ class NotificationService {
         await new Promise(resolve => setTimeout(resolve, 800));
         
         // Update the notification status
-        await this.updateNotificationStatus(notificationRef.id, 'sent', {
+        await this.updateNotificationStatus(notificationId, 'sent', {
           messageId: 'test-msg-' + Date.now()
         });
         
@@ -91,7 +97,7 @@ class NotificationService {
       
       // Update notification status with the real message ID
       if (response.data && response.data.id) {
-        await this.updateNotificationStatus(notificationRef.id, 'sent', {
+        await this.updateNotificationStatus(notificationId, 'sent', {
           messageId: response.data.id
         });
       }
@@ -107,13 +113,13 @@ class NotificationService {
       console.error('MessageBird SMS Error:', error.response?.data || error.message);
       
       // Update notification status with the error
-      if (notificationRef && notificationRef.id) {
+      if (notificationId) {
         if (error.response?.data) {
-          await this.updateNotificationStatus(notificationRef.id, 'failed', {
+          await this.updateNotificationStatus(notificationId, 'failed', {
             error: error.response.data
           });
         } else {
-          await this.updateNotificationStatus(notificationRef.id, 'failed', {
+          await this.updateNotificationStatus(notificationId, 'failed', {
             error: error.message
           });
         }
@@ -127,20 +133,27 @@ class NotificationService {
   }
   
   /**
-   * Update a notification document in Firestore
+   * Update a notification in localStorage
    * @private
-   * @param {string} notificationId - The Firestore document ID
+   * @param {string} notificationId - The notification ID
    * @param {string} status - New status
    * @param {Object} additionalData - Any additional data to store
    */
   static async updateNotificationStatus(notificationId, status, additionalData = {}) {
     try {
-      const notificationRef = doc(db, "notifications", notificationId);
-      await updateDoc(notificationRef, {
-        status,
-        updatedAt: Timestamp.now(),
-        ...additionalData
-      });
+      const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+      const notificationIndex = notifications.findIndex(n => n.id === notificationId);
+      
+      if (notificationIndex !== -1) {
+        notifications[notificationIndex] = {
+          ...notifications[notificationIndex],
+          status,
+          updatedAt: new Date().toISOString(),
+          ...additionalData
+        };
+        
+        localStorage.setItem('notifications', JSON.stringify(notifications));
+      }
     } catch (error) {
       console.error('Error updating notification status:', error);
     }

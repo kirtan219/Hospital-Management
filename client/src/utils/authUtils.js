@@ -1,4 +1,19 @@
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+// Mock auth utility functions
+const setPersistence = async () => {
+  return Promise.resolve();
+};
+
+const browserLocalPersistence = 'LOCAL';
+
+const getAuth = () => {
+  return {
+    currentUser: localStorage.getItem('mockUser') 
+      ? JSON.parse(localStorage.getItem('mockUser')) 
+      : null
+  };
+};
+
+export { getAuth, setPersistence, browserLocalPersistence };
 
 // Set up persistence
 export const setupAuthPersistence = async () => {

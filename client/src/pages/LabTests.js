@@ -31,14 +31,50 @@ import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
 import ScienceIcon from '@mui/icons-material/Science';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useAuth } from '../contexts/AuthContext';
-import labTests from '../data/labTests';
-import { db } from '../firebase';
-import { collection, addDoc, query, where, getDocs, doc, updateDoc, Timestamp } from 'firebase/firestore';
+
+// Mock database functions
+const localStorageDB = {
+  getTests: () => {
+    try {
+      const savedData = localStorage.getItem('labTests');
+      return savedData ? JSON.parse(savedData) : [];
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+      return [];
+    }
+  },
+  saveTests: (tests) => {
+    localStorage.setItem('labTests', JSON.stringify(tests));
+  },
+  addTest: (testData) => {
+    const tests = localStorageDB.getTests();
+    const newTest = {
+      id: Date.now().toString(),
+      ...testData,
+      createdAt: new Date().toISOString()
+    };
+    tests.push(newTest);
+    localStorageDB.saveTests(tests);
+    return newTest;
+  },
+  updateTest: (testId, updates) => {
+    const tests = localStorageDB.getTests();
+    const index = tests.findIndex(t => t.id === testId);
+    
+    if (index !== -1) {
+      tests[index] = { ...tests[index], ...updates };
+      localStorageDB.saveTests(tests);
+      return tests[index];
+    }
+    return null;
+  }
+};
 
 const LabTests = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredTests, setFilteredTests] = useState(labTests);
+  const [filteredTests, setFilteredTests] = useState(localStorageDB.getTests());
   const [tabValue, setTabValue] = useState(0);
   const [selectedTest, setSelectedTest] = useState(null);
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
@@ -54,12 +90,12 @@ const LabTests = () => {
   // Filter tests based on search term
   useEffect(() => {
     if (!searchTerm) {
-      setFilteredTests(labTests);
+      setFilteredTests(localStorageDB.getTests());
       return;
     }
 
     const searchTermLower = searchTerm.toLowerCase();
-    const filtered = labTests.filter(
+    const filtered = localStorageDB.getTests().filter(
       test => 
         test.name.toLowerCase().includes(searchTermLower) || 
         test.description.toLowerCase().includes(searchTermLower) ||
@@ -75,19 +111,7 @@ const LabTests = () => {
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        const q = query(
-          collection(db, "labTestOrders"), 
-          where("userId", "==", currentUser.uid)
-        );
-        const querySnapshot = await getDocs(q);
-        const orders = [];
-        querySnapshot.forEach((doc) => {
-          orders.push({
-            id: doc.id,
-            ...doc.data(),
-            orderDate: doc.data().orderDate?.toDate() || new Date()
-          });
-        });
+        const orders = localStorageDB.getTests().filter(order => order.userId === currentUser.uid);
         orders.sort((a, b) => b.orderDate - a.orderDate);
         setMyOrders(orders);
       } catch (error) {
@@ -124,34 +148,30 @@ const LabTests = () => {
     setLoading(true);
     try {
       // Get user details
-      const usersQuery = query(
-        collection(db, "users"), 
-        where("userId", "==", currentUser.uid)
-      );
-      const userSnapshot = await getDocs(usersQuery);
-      let userData = {};
-      userSnapshot.forEach((doc) => {
-        userData = doc.data();
-      });
+      const userData = {
+        name: currentUser.displayName || currentUser.email,
+        email: currentUser.email,
+        phone: currentUser.phone || ''
+      };
 
       // Create a new order
       const newOrder = {
         userId: currentUser.uid,
-        userName: userData.name || currentUser.email,
+        userName: userData.name,
         testId: selectedTest.id,
         testName: selectedTest.name,
         testCategory: selectedTest.category,
         price: selectedTest.price,
-        orderDate: Timestamp.now(),
+        orderDate: new Date().toISOString(),
         status: 'Pending',
         appointmentDate: null,
         results: null,
         paymentStatus: 'Unpaid',
-        patientEmail: userData.email || currentUser.email,
-        patientPhone: userData.phone || ''
+        patientEmail: userData.email,
+        patientPhone: userData.phone
       };
       
-      await addDoc(collection(db, "labTestOrders"), newOrder);
+      localStorageDB.addTest(newOrder);
       
       // Add to local state
       setMyOrders(prev => [{
@@ -375,11 +395,11 @@ const LabTests = () => {
                             {order.testCategory}
                           </Typography>
                           <Typography variant="body2" sx={{ mb: 0.5 }}>
-                            <strong>Ordered:</strong> {order.orderDate.toLocaleDateString()}, {order.orderDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            <strong>Ordered:</strong> {new Date(order.orderDate).toLocaleDateString()}, {new Date(order.orderDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </Typography>
                           {order.appointmentDate && (
                             <Typography variant="body2" sx={{ mb: 0.5 }}>
-                              <strong>Appointment:</strong> {new Date(order.appointmentDate.seconds * 1000).toLocaleDateString()}, {new Date(order.appointmentDate.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              <strong>Appointment:</strong> {new Date(order.appointmentDate).toLocaleDateString()}, {new Date(order.appointmentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                             </Typography>
                           )}
                           <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>

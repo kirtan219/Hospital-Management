@@ -21,9 +21,8 @@ import {
 } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import FeedbackIcon from '@mui/icons-material/Feedback';
-import { db } from '../firebase';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../contexts/AuthContext';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import SendIcon from '@mui/icons-material/Send';
 
 const FeedbackRating = () => {
   const [open, setOpen] = useState(false);
@@ -36,7 +35,6 @@ const FeedbackRating = () => {
     message: '',
     severity: 'success'
   });
-  const { currentUser } = useAuth();
 
   // Mock doctor list - in a real app, this would come from the database
   const doctors = [
@@ -66,15 +64,15 @@ const FeedbackRating = () => {
 
     setLoading(true);
     try {
-      // Save feedback to Firebase
-      await addDoc(collection(db, "feedback"), {
-        userId: currentUser?.uid || 'anonymous',
-        userEmail: currentUser?.email || 'anonymous',
+      // Save feedback to localStorage
+      const savedFeedback = await saveFeedback({
+        userId: 'mockUserId',
+        userEmail: 'mock@example.com',
         doctorId,
         doctorName: doctors.find(d => d.id === doctorId)?.name || '',
         rating,
         feedback,
-        createdAt: Timestamp.now()
+        timestamp: new Date().toISOString()
       });
 
       setSnackbar({
@@ -104,6 +102,31 @@ const FeedbackRating = () => {
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  // Mock function to save feedback to localStorage
+  const saveFeedback = async (feedback) => {
+    try {
+      // Get existing feedback or initialize empty array
+      const existingFeedback = JSON.parse(localStorage.getItem('feedback') || '[]');
+      
+      // Add new feedback with timestamp
+      const newFeedback = {
+        ...feedback,
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString()
+      };
+      
+      existingFeedback.push(newFeedback);
+      
+      // Save back to localStorage
+      localStorage.setItem('feedback', JSON.stringify(existingFeedback));
+      
+      return newFeedback;
+    } catch (error) {
+      console.error('Error saving feedback:', error);
+      throw error;
+    }
   };
 
   return (

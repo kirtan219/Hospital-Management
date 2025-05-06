@@ -18,8 +18,37 @@ import { useAuth } from '../contexts/AuthContext';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { doctors } from '../data/doctors';
-import { db } from '../firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+
+// Mock database functions
+const localStorageDB = {
+  getAppointments: () => {
+    try {
+      const savedData = localStorage.getItem('appointments');
+      return savedData ? JSON.parse(savedData) : [];
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+      return [];
+    }
+  },
+  saveAppointments: (appointments) => {
+    localStorage.setItem('appointments', JSON.stringify(appointments));
+  },
+  getAppointment: (id) => {
+    const appointments = localStorageDB.getAppointments();
+    return appointments.find(a => a.id === id);
+  },
+  updateAppointment: (id, updates) => {
+    const appointments = localStorageDB.getAppointments();
+    const index = appointments.findIndex(a => a.id === id);
+    
+    if (index !== -1) {
+      appointments[index] = { ...appointments[index], ...updates };
+      localStorageDB.saveAppointments(appointments);
+      return appointments[index];
+    }
+    return null;
+  }
+};
 
 const EditAppointment = () => {
   const { id } = useParams();
@@ -46,23 +75,17 @@ const EditAppointment = () => {
     const fetchAppointment = async () => {
       try {
         setLoading(true);
-        const appointmentRef = doc(db, "appointments", id);
-        const appointmentDoc = await getDoc(appointmentRef);
+        const appointment = localStorageDB.getAppointment(id);
         
-        if (!appointmentDoc.exists()) {
+        if (!appointment) {
           throw new Error('Appointment not found');
         }
 
-        const appointmentData = appointmentDoc.data();
-        
-        // Convert Firestore timestamp to Date
-        const appointmentDate = appointmentData.appointmentDate.toDate();
-        
         setFormData({
-          doctorId: appointmentData.doctorId.toString(),
-          appointmentDate: appointmentDate,
-          appointmentTime: appointmentDate,
-          reason: appointmentData.reason || '',
+          doctorId: appointment.doctorId.toString(),
+          appointmentDate: appointment.appointmentDate,
+          appointmentTime: appointment.appointmentDate,
+          reason: appointment.reason || '',
         });
       } catch (err) {
         setError('Failed to fetch appointment details');
@@ -100,9 +123,8 @@ const EditAppointment = () => {
         throw new Error('Selected doctor not found');
       }
 
-      // Update appointment in Firebase
-      const appointmentRef = doc(db, "appointments", id);
-      await updateDoc(appointmentRef, {
+      // Update appointment in localStorage
+      const updatedAppointment = localStorageDB.updateAppointment(id, {
         doctorId: parseInt(formData.doctorId),
         doctorName: selectedDoctor.name,
         doctorSpecialty: selectedDoctor.specialization,
@@ -110,6 +132,10 @@ const EditAppointment = () => {
         reason: formData.reason || 'General Checkup',
         updatedAt: new Date()
       });
+      
+      if (!updatedAppointment) {
+        throw new Error('Failed to update appointment');
+      }
       
       setSuccess(true);
       setSnackbar({

@@ -44,6 +44,7 @@ import SignUp from './pages/SignUp';
 import HealthMonitoring from './pages/HealthMonitoring';
 import MedicineFinder from './pages/MedicineFinder';
 import LabTests from './pages/LabTests';
+import EditAppointment from './pages/EditAppointment';
 
 // Custom pill icon based on the provided image - oval pill shape
 const PillIcon = (props) => (
@@ -291,6 +292,7 @@ const AppContent = () => {
               <LabTests />
             </ProtectedRoute>
           } />
+          <Route path="/appointments/:id/edit" element={<EditAppointment />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Container>

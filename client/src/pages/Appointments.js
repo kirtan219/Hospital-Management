@@ -33,6 +33,7 @@ import EventIcon from '@mui/icons-material/Event';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import DownloadIcon from '@mui/icons-material/Download';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '../utils/dateUtils';
 import { db } from '../firebase';
@@ -319,6 +320,43 @@ const Appointments = () => {
     return appointment.billPaid ? '#4caf50' : '#f44336';
   };
 
+  const handleCancelAppointment = async (appointment) => {
+    try {
+      setLoading(true);
+      
+      // Update the appointment status in Firebase
+      const appointmentRef = doc(db, "appointments", appointment.id);
+      await updateDoc(appointmentRef, {
+        status: 'Cancelled',
+        updatedAt: new Date()
+      });
+      
+      // Update the local state
+      setAppointments(prevAppointments => 
+        prevAppointments.map(app => 
+          app.id === appointment.id 
+            ? { ...app, status: 'Cancelled' }
+            : app
+        )
+      );
+      
+      setSnackbar({
+        open: true,
+        message: "Appointment cancelled successfully",
+        severity: "success"
+      });
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      setSnackbar({
+        open: true,
+        message: "Failed to cancel appointment",
+        severity: "error"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
@@ -329,11 +367,11 @@ const Appointments = () => {
             </Typography>
             <Typography variant="subtitle1" color="text.secondary">
               Manage your scheduled appointments
-            </Typography>
+          </Typography>
           </Grid>
           <Grid item>
-            <Button 
-              variant="contained" 
+          <Button
+            variant="contained"
               onClick={handleBookAppointment}
               sx={{
                 bgcolor: '#ff3366',
@@ -473,12 +511,23 @@ const Appointments = () => {
                       )}
                       
                       {appointment.status === 'Upcoming' && (
-                        <Button 
-                          variant="outlined" 
-                          color="error"
-                        >
-                          Cancel
-                        </Button>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          <Button 
+                            variant="outlined" 
+                            color="primary"
+                            startIcon={<EditIcon />}
+                            onClick={() => navigate(`/appointments/${appointment.id}/edit`)}
+                          >
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="outlined" 
+                            color="error"
+                            onClick={() => handleCancelAppointment(appointment)}
+                          >
+                            Cancel
+                          </Button>
+                        </Box>
                       )}
                     </Grid>
                   </Grid>
@@ -500,11 +549,11 @@ const Appointments = () => {
               sx={{
                 bgcolor: '#ff3366',
                 '&:hover': { bgcolor: '#e62e5c' }
-              }}
-            >
-              Book New Appointment
-            </Button>
-          </Box>
+            }}
+          >
+            Book New Appointment
+          </Button>
+        </Box>
         )}
         
         {/* Invoice Dialog */}
@@ -564,27 +613,27 @@ const Appointments = () => {
                 
                 <TableContainer>
                   <Table>
-                    <TableHead>
-                      <TableRow>
+            <TableHead>
+              <TableRow>
                         <TableCell sx={{ fontWeight: 600 }}>Item</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>Amount</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
+              </TableRow>
+            </TableHead>
+            <TableBody>
                       {invoiceItems.map((item, index) => (
                         <TableRow key={index}>
                           <TableCell>{item.description}</TableCell>
                           <TableCell align="right">${item.amount}</TableCell>
-                        </TableRow>
+                  </TableRow>
                       ))}
-                      <TableRow>
+                <TableRow>
                         <TableCell sx={{ fontWeight: 600 }}>Total</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>
                           ${calculateInvoiceTotal()}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  </TableCell>
+                </TableRow>
+            </TableBody>
+          </Table>
                 </TableContainer>
                 
                 <Divider sx={{ my: 2 }} />

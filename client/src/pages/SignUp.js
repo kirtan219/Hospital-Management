@@ -145,20 +145,20 @@ const SignUp = () => {
           <Button
             fullWidth
             variant="outlined"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
             startIcon={<GoogleIcon />}
             sx={{
-              mb: 3,
-              py: 1.5,
-              borderRadius: '50px',
-              borderColor: 'rgba(0, 0, 0, 0.1)',
-              color: '#333',
+              mt: 2,
+              color: '#4285F4',
+              borderColor: '#4285F4',
+              fontWeight: 700,
+              textTransform: 'none',
+              bgcolor: '#fff',
               '&:hover': {
-                borderColor: '#ff3366',
-                backgroundColor: 'rgba(255, 51, 102, 0.08)',
+                bgcolor: '#f6f7fb',
+                borderColor: '#4285F4',
               },
             }}
+            onClick={handleGoogleSignIn}
           >
             Continue with Google
           </Button>

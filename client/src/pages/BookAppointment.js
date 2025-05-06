@@ -14,7 +14,9 @@ import {
   FormControlLabel,
   Checkbox,
   Divider,
-  Switch
+  Switch,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,8 +24,12 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { doctors } from '../data/doctors';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import EmailIcon from '@mui/icons-material/Email';
 import SmsIcon from '@mui/icons-material/Sms';
+import SendIcon from '@mui/icons-material/Send';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import NotificationService from '../utils/notificationService';
 import { db } from '../firebase';
 import { collection, addDoc, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 
@@ -41,9 +47,16 @@ const BookAppointment = () => {
   });
 
   const [reminders, setReminders] = useState({
-    email: true,
-    sms: false,
+    sms: true,
+    instantNotification: true,
     reminderTime: '24' // hours before appointment
+  });
+  
+  const [phoneInput, setPhoneInput] = useState(''); // State for phone input
+  const [customMessage, setCustomMessage] = useState(''); // New state for custom message
+  const [testingNotification, setTestingNotification] = useState({
+    inProgress: false,
+    status: null
   });
   
   const [loading, setLoading] = useState(false);
@@ -90,6 +103,12 @@ const BookAppointment = () => {
       setError('Please fill in all required fields');
       return;
     }
+    
+    // Check if SMS is enabled but no phone number provided
+    if (reminders.sms && !phoneInput && !userData?.phone) {
+      setError('Please provide a phone number for SMS reminders');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -114,43 +133,17 @@ const BookAppointment = () => {
         throw new Error('Selected doctor not found');
       }
 
-      // Create new appointment object for local storage
-      const newAppointment = {
-        id: Date.now(),
-        date,
-        time,
-        doctor: selectedDoctor.name,
-        type: formData.reason || 'General Checkup',
-        status: 'Scheduled'
-      };
-
-      // Get existing appointments from localStorage
-      let existingAppointments = [];
-      try {
-        const savedAppointments = localStorage.getItem('appointments');
-        existingAppointments = savedAppointments ? JSON.parse(savedAppointments) : [];
-        console.log('Existing appointments:', existingAppointments);
-      } catch (error) {
-        console.error('Error parsing existing appointments:', error);
-        existingAppointments = [];
-      }
-      
-      // Add new appointment to localStorage
-      const updatedAppointments = [...existingAppointments, newAppointment];
-      console.log('Updated appointments:', updatedAppointments);
-      localStorage.setItem('appointments', JSON.stringify(updatedAppointments));
-      
-      // Add appointment to Firebase with reminder settings
+      // Create appointment object
       const appointmentDateTime = new Date(formData.appointmentDate);
       appointmentDateTime.setHours(
         new Date(formData.appointmentTime).getHours(),
         new Date(formData.appointmentTime).getMinutes()
       );
       
-      // Create a reminder date based on the reminderTime setting
-      const reminderDate = new Date(appointmentDateTime);
-      reminderDate.setHours(reminderDate.getHours() - parseInt(reminders.reminderTime));
+      // Use the phone number input if provided
+      const phoneNumber = phoneInput || userData?.phone || '';
       
+      // Create a new appointment in Firebase
       const firestoreAppointment = {
         userId: currentUser.uid,
         patientName: userData?.name || currentUser.email,
@@ -162,47 +155,52 @@ const BookAppointment = () => {
         status: 'Scheduled',
         createdAt: new Date(),
         reminders: {
-          email: reminders.email,
           sms: reminders.sms,
-          reminderDate: reminderDate,
-          reminderSent: false
+          instantNotification: reminders.instantNotification,
+          reminderTime: reminders.reminderTime,
+          customMessage: customMessage || null
         },
         contactInfo: {
           email: userData?.email || currentUser.email,
-          phone: userData?.phone || ''
+          phone: phoneNumber
         }
       };
       
-      await addDoc(collection(db, "appointments"), firestoreAppointment);
+      // Add to Firestore
+      const docRef = await addDoc(collection(db, "appointments"), firestoreAppointment);
       
-      // Send confirmation message
-      if (reminders.email || reminders.sms) {
-        const reminderMessage = `
-📅 Appointment Confirmation
-
-You have scheduled an appointment with ${selectedDoctor.name} on ${new Date(appointmentDateTime).toLocaleDateString()} at ${time}.
-
-${reminders.email ? '✓ Email reminder will be sent' : ''}
-${reminders.sms && userData?.phone ? '✓ SMS reminder will be sent' : ''}
-${
-  reminders.reminderTime === '24' 
-    ? '24 hours before your appointment' 
-    : reminders.reminderTime === '48' 
-      ? '48 hours before your appointment' 
-      : '1 hour before your appointment'
-}
-
-Thank you for choosing MediCare Pro!
-        `;
+      // Send instant SMS reminder if enabled and phone number available
+      let smsResult = null;
+      if (reminders.sms && phoneNumber) {
+        // Create appointment details object
+        const appointmentDetails = {
+          patientName: userData?.name || 'Patient',
+          doctor: selectedDoctor.name,
+          reason: formData.reason || 'General Checkup',
+          date: appointmentDateTime,
+          time: time
+        };
         
-        // In a real app, this would send an actual email/SMS
-        console.log('Confirmation message:', reminderMessage);
+        // Send the SMS with optional custom message
+        smsResult = await NotificationService.sendSMS(
+          phoneNumber, 
+          appointmentDetails, 
+          customMessage || null
+        );
       }
-
+      
+      // Show browser notification if enabled
+      if (reminders.instantNotification) {
+        NotificationService.showBrowserNotification(
+          'Appointment Booked', 
+          `Your appointment with ${selectedDoctor.name} on ${new Date(appointmentDateTime).toLocaleDateString()} at ${time} has been scheduled.`
+        );
+      }
+      
       setSuccess(true);
       setSnackbar({
         open: true,
-        message: "Appointment booked successfully! Reminders have been set.",
+        message: "Appointment booked successfully! " + (smsResult ? "SMS reminder sent." : ""),
         severity: "success"
       });
       
@@ -216,7 +214,7 @@ Thank you for choosing MediCare Pro!
       
       setSnackbar({
         open: true,
-        message: "Failed to book appointment. Please try again.",
+        message: "Failed to book appointment: " + err.message,
         severity: "error"
       });
     } finally {
@@ -245,6 +243,81 @@ Thank you for choosing MediCare Pro!
       ...prev,
       open: false
     }));
+  };
+
+  // Update handlePhoneChange to handle custom message too
+  const handlePhoneChange = (e) => {
+    setPhoneInput(e.target.value);
+  };
+  
+  // Add handler for custom message
+  const handleMessageChange = (e) => {
+    setCustomMessage(e.target.value);
+  };
+
+  // Update handleTestNotification to use the simplified API
+  const handleTestNotification = async () => {
+    setTestingNotification({
+      inProgress: true,
+      status: null
+    });
+    
+    try {
+      // Get the phone number to test
+      const phoneNumberToTest = phoneInput || userData?.phone || '';
+      
+      if (!phoneNumberToTest) {
+        throw new Error('Please enter a phone number to test SMS notification');
+      }
+      
+      // Create test appointment details
+      const testAppointment = {
+        patientName: userData?.name || 'Patient',
+        doctor: 'Dr. Test Doctor',
+        reason: 'test appointment',
+        date: new Date(),
+        time: new Date()
+      };
+      
+      // Use customMessage if provided, otherwise use the default template
+      const result = await NotificationService.sendSMS(
+        phoneNumberToTest, 
+        testAppointment, 
+        customMessage || null
+      );
+      
+      setTestingNotification({
+        inProgress: false,
+        status: 'success'
+      });
+      
+      setSnackbar({
+        open: true,
+        message: "Test SMS sent successfully! Check the preview notification.",
+        severity: "success"
+      });
+      
+      // Reset status after a few seconds
+      setTimeout(() => {
+        setTestingNotification(prev => ({
+          ...prev,
+          status: null
+        }));
+      }, 5000);
+    } catch (error) {
+      console.error('Error sending test SMS:', error);
+      
+      setTestingNotification({
+        inProgress: false,
+        status: 'error'
+      });
+      
+      setSnackbar({
+        open: true,
+        message: "Failed to send test SMS: " + error.message,
+        severity: "error"
+      });
+    }
   };
 
   return (
@@ -374,16 +447,16 @@ Thank you for choosing MediCare Pro!
                   <FormControlLabel
                     control={
                       <Switch 
-                        checked={reminders.email} 
+                        checked={reminders.sms} 
                         onChange={handleReminderChange} 
-                        name="email" 
+                        name="sms" 
                         color="primary"
                       />
                     }
                     label={
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <EmailIcon fontSize="small" sx={{ mr: 0.5 }} />
-                        <Typography variant="body2">Email Reminder</Typography>
+                        <SmsIcon fontSize="small" sx={{ mr: 0.5 }} />
+                        <Typography variant="body2">SMS Reminder</Typography>
                       </Box>
                     }
                   />
@@ -391,23 +464,104 @@ Thank you for choosing MediCare Pro!
                   <FormControlLabel
                     control={
                       <Switch 
-                        checked={reminders.sms} 
+                        checked={reminders.instantNotification} 
                         onChange={handleReminderChange} 
-                        name="sms" 
+                        name="instantNotification" 
                         color="primary"
-                        disabled={!userData?.phone}
                       />
                     }
                     label={
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <SmsIcon fontSize="small" sx={{ mr: 0.5 }} />
-                        <Typography variant="body2">
-                          SMS Reminder {!userData?.phone && "(Add phone number in profile)"}
-                        </Typography>
+                        <SendIcon fontSize="small" sx={{ mr: 0.5 }} />
+                        <Typography variant="body2">Browser Notification</Typography>
                       </Box>
                     }
                   />
                 </Box>
+                
+                {reminders.sms && (
+                  <Alert 
+                    severity="info" 
+                    variant="outlined" 
+                    sx={{ mb: 2 }}
+                    icon={<SmsIcon />}
+                  >
+                    <Typography variant="body2" fontWeight={500}>
+                      SMS Reminder via MessageBird
+                    </Typography>
+                    <Typography variant="body2">
+                      A personalized SMS reminder will be sent to your phone when you book the appointment.
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 1, fontSize: '0.75rem', color: 'text.secondary' }}>
+                      Enter your phone number and customize your message below.
+                    </Typography>
+                  </Alert>
+                )}
+                
+                {/* Phone number input field */}
+                {reminders.sms && (
+                  <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={12} sm={8} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Phone Number for SMS"
+                        value={phoneInput}
+                        onChange={handlePhoneChange}
+                        placeholder={userData?.phone || "Enter your phone number"}
+                        helperText="Enter your phone number to receive SMS reminders"
+                        InputProps={{
+                          endAdornment: (
+                            <Tooltip title="Test MessageBird notification">
+                              <IconButton 
+                                onClick={handleTestNotification}
+                                disabled={testingNotification.inProgress}
+                                size="small"
+                                color={
+                                  testingNotification.status === 'success' ? 'success' : 
+                                  testingNotification.status === 'error' ? 'error' : 'default'
+                                }
+                              >
+                                {testingNotification.inProgress ? (
+                                  <CircularProgress size={20} />
+                                ) : testingNotification.status === 'success' ? (
+                                  <CheckCircleIcon />
+                                ) : testingNotification.status === 'error' ? (
+                                  <ErrorIcon />
+                                ) : (
+                                  <SendIcon />
+                                )}
+                              </IconButton>
+                            </Tooltip>
+                          )
+                        }}
+                        sx={{ 
+                          '& .MuiOutlinedInput-root': { borderRadius: '8px' }
+                        }}
+                      />
+                    </Grid>
+                  </Grid>
+                )}
+
+                {/* Custom message input field */}
+                {reminders.sms && (
+                  <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={2}
+                        label="Custom SMS Message (Optional)"
+                        value={customMessage}
+                        onChange={handleMessageChange}
+                        placeholder="Leave blank to use default template, or enter custom message like: Hello [name], your [reason] appointment with Dr. [doctor] is on [date] at [time]"
+                        helperText="If left blank, a default message with your appointment details will be sent"
+                        sx={{ 
+                          '& .MuiOutlinedInput-root': { borderRadius: '8px' }
+                        }}
+                      />
+                    </Grid>
+                  </Grid>
+                )}
                 
                 <TextField
                   select
@@ -416,7 +570,7 @@ Thank you for choosing MediCare Pro!
                   label="Remind me"
                   value={reminders.reminderTime}
                   onChange={handleReminderChange}
-                  disabled={!reminders.email && !reminders.sms}
+                  disabled={!reminders.sms}
                   sx={{ 
                     '& .MuiOutlinedInput-root': { borderRadius: '8px' },
                     maxWidth: '400px'

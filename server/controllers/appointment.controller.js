@@ -206,4 +206,27 @@ exports.updateAppointmentStatus = async (req, res) => {
       message: err.message
     });
   }
-}; 
+};
+
+// @desc    Get appointments for a specific doctor
+// @route   GET /api/appointments/doctor
+// @access  Private (Doctor only)
+exports.getAppointmentsForDoctor = async (req, res) => {
+  try {
+    const doctorId = req.user.id; // Assuming the authenticated user's ID corresponds to the doctor
+
+    const appointments = await Appointment.find({ doctorId });
+
+    res.status(200).json({
+      success: true,
+      count: appointments.length,
+      data: appointments
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: 'Server Error',
+      error: err.message
+    });
+  }
+};

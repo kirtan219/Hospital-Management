@@ -33,48 +33,41 @@ import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useAuth } from '../contexts/AuthContext';
+import labTests from '../data/labTests';
+import io from 'socket.io-client';
 
-// Mock database functions
+const socket = io('http://localhost:5000'); // Replace with your server URL
+
+// Mock database functions for orders only
 const localStorageDB = {
-  getTests: () => {
+  getOrders: () => {
     try {
-      const savedData = localStorage.getItem('labTests');
+      const savedData = localStorage.getItem('labTestOrders');
       return savedData ? JSON.parse(savedData) : [];
     } catch (error) {
       console.error('Error reading from localStorage:', error);
       return [];
     }
   },
-  saveTests: (tests) => {
-    localStorage.setItem('labTests', JSON.stringify(tests));
+  saveOrders: (orders) => {
+    localStorage.setItem('labTestOrders', JSON.stringify(orders));
   },
-  addTest: (testData) => {
-    const tests = localStorageDB.getTests();
-    const newTest = {
+  addOrder: (orderData) => {
+    const orders = localStorageDB.getOrders();
+    const newOrder = {
       id: Date.now().toString(),
-      ...testData,
+      ...orderData,
       createdAt: new Date().toISOString()
     };
-    tests.push(newTest);
-    localStorageDB.saveTests(tests);
-    return newTest;
-  },
-  updateTest: (testId, updates) => {
-    const tests = localStorageDB.getTests();
-    const index = tests.findIndex(t => t.id === testId);
-    
-    if (index !== -1) {
-      tests[index] = { ...tests[index], ...updates };
-      localStorageDB.saveTests(tests);
-      return tests[index];
-    }
-    return null;
+    orders.push(newOrder);
+    localStorageDB.saveOrders(orders);
+    return newOrder;
   }
 };
 
 const LabTests = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredTests, setFilteredTests] = useState(localStorageDB.getTests());
+  const [filteredTests, setFilteredTests] = useState(labTests);
   const [tabValue, setTabValue] = useState(0);
   const [selectedTest, setSelectedTest] = useState(null);
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
@@ -90,12 +83,12 @@ const LabTests = () => {
   // Filter tests based on search term
   useEffect(() => {
     if (!searchTerm) {
-      setFilteredTests(localStorageDB.getTests());
+      setFilteredTests(labTests);
       return;
     }
 
     const searchTermLower = searchTerm.toLowerCase();
-    const filtered = localStorageDB.getTests().filter(
+    const filtered = labTests.filter(
       test => 
         test.name.toLowerCase().includes(searchTermLower) || 
         test.description.toLowerCase().includes(searchTermLower) ||
@@ -111,7 +104,7 @@ const LabTests = () => {
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        const orders = localStorageDB.getTests().filter(order => order.userId === currentUser.uid);
+        const orders = localStorageDB.getOrders().filter(order => order.userId === currentUser.uid);
         orders.sort((a, b) => b.orderDate - a.orderDate);
         setMyOrders(orders);
       } catch (error) {
@@ -128,6 +121,23 @@ const LabTests = () => {
 
     fetchOrders();
   }, [currentUser]);
+
+  useEffect(() => {
+    socket.on('orderUpdate', (order) => {
+      setMyOrders((prevOrders) => {
+        const index = prevOrders.findIndex((o) => o.id === order.id);
+        if (index !== -1) {
+          prevOrders[index] = order;
+          return [...prevOrders];
+        }
+        return [...prevOrders, order];
+      });
+    });
+
+    return () => {
+      socket.off('orderUpdate');
+    };
+  }, []);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -171,7 +181,7 @@ const LabTests = () => {
         patientPhone: userData.phone
       };
       
-      localStorageDB.addTest(newOrder);
+      localStorageDB.addOrder(newOrder);
       
       // Add to local state
       setMyOrders(prev => [{
@@ -305,7 +315,7 @@ const LabTests = () => {
                         </Typography>
                         <Chip
                           size="small"
-                          label={`$${test.price}`}
+                          label={`₹${test.price}`}
                           color="primary"
                           sx={{ fontWeight: 600 }}
                         />
@@ -423,7 +433,7 @@ const LabTests = () => {
                               }} 
                             />
                             <Typography variant="body2" fontWeight={600} color="primary">
-                              ${order.price}
+                              ₹{order.price}
                             </Typography>
                           </Box>
                         </Grid>
@@ -511,7 +521,7 @@ const LabTests = () => {
                   <ListItem disablePadding sx={{ py: 0.5 }}>
                     <ListItemText 
                       primary="Price" 
-                      secondary={`$${selectedTest.price}`} 
+                      secondary={`₹${selectedTest.price}`} 
                       primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }} 
                       secondaryTypographyProps={{ variant: 'body2', fontWeight: 500 }} 
                     />
@@ -579,4 +589,4 @@ const LabTests = () => {
   );
 };
 
-export default LabTests; 
+export default LabTests;

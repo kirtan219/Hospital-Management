@@ -58,5 +58,17 @@ export const doctors = [
     image: "https://img.freepik.com/free-photo/doctor-with-white-coat-stethoscope_144627-43879.jpg",
     education: "MD - Dermatology, MBBS",
     description: "Dr. Patel is a skilled dermatologist specializing in both medical and cosmetic dermatology. She is known for her expertise in treating complex skin conditions and advanced skincare procedures."
+  },
+  {
+    id: 6,
+    name: "Dr. Anjali Sharma",
+    specialization: "Gynecologist",
+    experience: "10 years",
+    rating: 4.6,
+    patients: 1400,
+    availability: "Mon-Sun",
+    image: "https://img.freepik.com/free-photo/female-doctor-hospital-with-stethoscope_23-2148827774.jpg",
+    education: "MD - Dermatology, MBBS",
+    description: "Dr. Patel is a skilled dermatologist specializing in both medical and cosmetic dermatology. She is known for her expertise in treating complex skin conditions and advanced skincare procedures."
   }
 ]; 

@@ -6,8 +6,10 @@ const {
   createAppointment,
   updateAppointment,
   deleteAppointment,
-  updateAppointmentStatus
+  updateAppointmentStatus,
+  getAppointmentsForDoctor
 } = require('../controllers/appointment.controller');
+const { authorize } = require('../middleware/auth');
 
 router.route('/')
   .get(getAppointments)
@@ -21,4 +23,7 @@ router.route('/:id')
 router.route('/:id/status')
   .patch(updateAppointmentStatus);
 
-module.exports = router; 
+// Route for doctors to fetch their appointments
+router.route('/doctor').get(authorize('doctor'), getAppointmentsForDoctor);
+
+module.exports = router;

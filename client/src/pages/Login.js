@@ -38,8 +38,16 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
-      navigate('/dashboard');
+      const user = await login(formData.email, formData.password);
+      if (user.role === 'doctor') {
+        navigate('/appointments');
+      } else if (user.role === 'lab_person') {
+        navigate('/lab-orders');
+      } else if (user.role === 'medical_shop_person') {
+        navigate('/medicine-orders');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError('Failed to sign in. Please check your credentials.');
       console.error('Login error:', err);
@@ -50,8 +58,16 @@ const Login = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signInWithGoogle();
-      navigate('/dashboard');
+      const user = await signInWithGoogle();
+      if (user.role === 'doctor') {
+        navigate('/appointments');
+      } else if (user.role === 'lab_person') {
+        navigate('/lab-orders');
+      } else if (user.role === 'medical_shop_person') {
+        navigate('/medicine-orders');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError('Failed to sign in with Google.');
       console.error('Google sign-in error:', err);
@@ -209,4 +225,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;

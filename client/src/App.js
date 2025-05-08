@@ -38,6 +38,7 @@ import BookAppointment from './pages/BookAppointment';
 import PatientRegister from './pages/PatientRegister';
 import PatientProfile from './pages/PatientProfile';
 import Patients from './pages/Patients';
+import PatientDetails from './pages/PatientDetails';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import SignUp from './pages/SignUp';
@@ -272,6 +273,11 @@ const AppContent = () => {
               <PatientRegister />
             </ProtectedRoute>
           } />
+          <Route path="/patients/:id" element={
+            <ProtectedRoute>
+              <PatientDetails />
+            </ProtectedRoute>
+          } />
           <Route path="/profile" element={
             <ProtectedRoute>
               <PatientProfile />
@@ -314,4 +320,4 @@ const App = () => {
   );
 };
 
-export default App; 
+export default App;

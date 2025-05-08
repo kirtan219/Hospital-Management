@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   Container, 
   Typography, 
@@ -10,6 +10,9 @@ import {
 } from '@mui/material';
 import MedicineSearch from '../components/MedicineSearch';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
+import io from 'socket.io-client';
+
+const socket = io('http://localhost:5000'); // Replace with your server URL
 
 // Custom pill icon based on the provided image - oval pill shape
 const PillIcon = (props) => (
@@ -20,6 +23,17 @@ const PillIcon = (props) => (
 );
 
 const MedicineFinder = () => {
+  useEffect(() => {
+    socket.on('medicineOrderUpdate', (order) => {
+      console.log('New medicine order update:', order);
+      // Update the UI or state as needed
+    });
+
+    return () => {
+      socket.off('medicineOrderUpdate');
+    };
+  }, []);
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
@@ -131,4 +145,4 @@ const MedicineFinder = () => {
   );
 };
 
-export default MedicineFinder; 
+export default MedicineFinder;

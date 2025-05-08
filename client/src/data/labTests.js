@@ -1,94 +1,193 @@
 const labTests = [
   {
-    id: "lt1",
-    name: "Complete Blood Count (CBC)",
-    description: "Measures different components of blood including red cells, white cells, and platelets.",
-    price: 20,
-    preparationGuidelines: "Fast for 8 hours before the test. Water is allowed.",
-    duration: "1 day",
-    category: "Hematology"
+    id: '1',
+    name: 'Complete Blood Count (CBC)',
+    category: 'Hematology',
+    price: '₹800',
+    description: 'Measures different components of blood including red cells, white cells, and platelets',
+    duration: '15-30 minutes',
+    preparationGuidelines: 'Fasting for 8-12 hours may be required'
   },
   {
-    id: "lt2",
-    name: "Blood Glucose Test",
-    description: "Measures the amount of glucose in your blood, primarily used to diagnose diabetes.",
-    price: 15,
-    preparationGuidelines: "Fast for at least 8 hours for fasting glucose test.",
-    duration: "1 day",
-    category: "Endocrinology"
+    id: '2',
+    name: 'Lipid Profile',
+    category: 'Biochemistry',
+    price: '₹1200',
+    description: 'Measures cholesterol levels including HDL, LDL, and triglycerides',
+    duration: '30 minutes',
+    preparationGuidelines: 'Fasting for 9-12 hours required'
   },
   {
-    id: "lt3",
-    name: "Lipid Panel",
-    description: "Measures cholesterol levels and triglycerides to assess heart disease risk.",
-    price: 30,
-    preparationGuidelines: "Fast for 9-12 hours before the test. Water is allowed.",
-    duration: "1-2 days",
-    category: "Cardiology"
+    id: '3',
+    name: 'Blood Glucose Test',
+    category: 'Diabetes',
+    price: '₹400',
+    description: 'Measures blood sugar levels to diagnose and monitor diabetes',
+    duration: '10 minutes',
+    preparationGuidelines: 'Fasting for 8 hours required for fasting glucose test'
   },
   {
-    id: "lt4",
-    name: "Thyroid Function Tests",
-    description: "Evaluates how well your thyroid gland is working by measuring hormone levels.",
-    price: 40,
-    preparationGuidelines: "No special preparation required.",
-    duration: "2 days",
-    category: "Endocrinology"
+    id: '4',
+    name: 'Thyroid Function Test (TSH)',
+    category: 'Endocrinology',
+    price: '₹1500',
+    description: 'Evaluates thyroid gland function and helps diagnose thyroid disorders',
+    duration: '20 minutes',
+    preparationGuidelines: 'No special preparation required'
   },
   {
-    id: "lt5",
-    name: "Liver Function Tests",
-    description: "Assesses liver function and detects liver damage.",
-    price: 35,
-    preparationGuidelines: "No alcohol for 24 hours before the test.",
-    duration: "1-2 days",
-    category: "Gastroenterology"
+    id: '5',
+    name: 'Liver Function Test',
+    category: 'Hepatology',
+    price: '₹1800',
+    description: 'Assesses liver function and screens for liver diseases',
+    duration: '30 minutes',
+    preparationGuidelines: 'Fasting for 8-12 hours recommended'
   },
   {
-    id: "lt6",
-    name: "Kidney Function Tests",
-    description: "Evaluates how well your kidneys are working.",
-    price: 35,
-    preparationGuidelines: "No special preparation required.",
-    duration: "1-2 days",
-    category: "Nephrology"
+    id: '6',
+    name: 'Kidney Function Test',
+    category: 'Nephrology',
+    price: '₹1600',
+    description: 'Evaluates kidney function through creatinine and BUN levels',
+    duration: '30 minutes',
+    preparationGuidelines: 'No special preparation required'
   },
   {
-    id: "lt7",
-    name: "Urinalysis",
-    description: "Analyzes the physical, chemical, and microscopic properties of urine.",
-    price: 15,
-    preparationGuidelines: "Collect a mid-stream urine sample.",
-    duration: "1 day",
-    category: "Nephrology"
+    id: '7',
+    name: 'HbA1c Test',
+    category: 'Diabetes',
+    price: '₹900',
+    description: 'Measures average blood glucose levels over past 2-3 months',
+    duration: '15 minutes',
+    preparationGuidelines: 'No fasting required'
   },
   {
-    id: "lt8",
-    name: "COVID-19 PCR Test",
-    description: "Detects genetic material from the SARS-CoV-2 virus.",
-    price: 50,
-    preparationGuidelines: "No eating, drinking, or smoking 30 minutes before test.",
-    duration: "1-2 days",
-    category: "Infectious Disease"
+    id: '8',
+    name: 'Vitamin D Test',
+    category: 'Nutrition',
+    price: '₹2000',
+    description: 'Measures vitamin D levels in blood',
+    duration: '20 minutes',
+    preparationGuidelines: 'No special preparation required'
   },
   {
-    id: "lt9",
-    name: "Electrocardiogram (ECG)",
-    description: "Records the electrical activity of your heart.",
-    price: 60,
-    preparationGuidelines: "Wear comfortable clothing. No special preparation required.",
-    duration: "Immediate",
-    category: "Cardiology"
+    id: '9',
+    name: 'Vitamin B12 Test',
+    category: 'Nutrition',
+    price: '₹1800',
+    description: 'Measures vitamin B12 levels to check for deficiency',
+    duration: '20 minutes',
+    preparationGuidelines: 'Fasting for 6-8 hours recommended'
   },
   {
-    id: "lt10",
-    name: "X-Ray",
-    description: "Uses radiation to produce images of structures inside the body.",
-    price: 80,
-    preparationGuidelines: "Remove any metal objects or jewelry.",
-    duration: "Immediate",
-    category: "Radiology"
+    id: '10',
+    name: 'Complete Urine Analysis',
+    category: 'Urinalysis',
+    price: '₹600',
+    description: 'Analyzes urine content for various health markers',
+    duration: '30 minutes',
+    preparationGuidelines: 'Mid-stream urine sample required'
+  },
+  {
+    id: '11',
+    name: 'Iron Studies',
+    category: 'Hematology',
+    price: '₹2000',
+    description: 'Measures iron levels and iron-binding capacity',
+    duration: '30 minutes',
+    preparationGuidelines: 'Fasting for 8-12 hours required'
+  },
+  {
+    id: '12',
+    name: 'COVID-19 RT-PCR Test',
+    category: 'Infectious Disease',
+    price: '₹2500',
+    description: 'Detects current COVID-19 infection',
+    duration: '24-48 hours',
+    preparationGuidelines: 'No special preparation required'
+  },
+  {
+    id: '13',
+    name: 'Hemoglobin Test',
+    category: 'Hematology',
+    price: '₹350',
+    description: 'Measures hemoglobin levels in blood',
+    duration: '10 minutes',
+    preparationGuidelines: 'No special preparation required'
+  },
+  {
+    id: '14',
+    name: 'PSA Test',
+    category: 'Men\'s Health',
+    price: '₹2200',
+    description: 'Prostate-specific antigen test for prostate health',
+    duration: '20 minutes',
+    preparationGuidelines: 'No special preparation required'
+  },
+  {
+    id: '15',
+    name: 'Pap Smear',
+    category: 'Women\'s Health',
+    price: '₹2500',
+    description: 'Cervical cancer screening test',
+    duration: '15 minutes',
+    preparationGuidelines: 'Specific timing and preparation instructions provided'
+  },
+  {
+    id: '16',
+    name: 'ECG/EKG',
+    category: 'Cardiology',
+    price: '₹1200',
+    description: 'Records electrical activity of the heart',
+    duration: '15-20 minutes',
+    preparationGuidelines: 'Wear comfortable clothing, avoid oily skin products'
+  },
+  {
+    id: '17',
+    name: 'Allergy Panel Test',
+    category: 'Immunology',
+    price: '₹3500',
+    description: 'Tests for common allergies and sensitivities',
+    duration: '30-45 minutes',
+    preparationGuidelines: 'Avoid antihistamines for 7 days prior'
+  },
+  {
+    id: '18',
+    name: 'Microalbumin Test',
+    category: 'Nephrology',
+    price: '₹900',
+    description: 'Detects early signs of kidney damage',
+    duration: '20 minutes',
+    preparationGuidelines: 'First morning urine sample preferred'
+  },
+  {
+    id: '19',
+    name: 'Hormone Panel',
+    category: 'Endocrinology',
+    price: '₹4000',
+    description: 'Comprehensive hormone level assessment',
+    duration: '30 minutes',
+    preparationGuidelines: 'Fasting for 8-12 hours required'
+  },
+  {
+    id: '20',
+    name: 'Bone Density Test',
+    category: 'Orthopedics',
+    price: '₹3800',
+    description: 'Measures bone density to assess risk of fractures',
+    duration: '30-45 minutes',
+    preparationGuidelines: 'Wear comfortable clothing, avoid calcium supplements 24h prior'
+  },
+  {
+    id: '21',
+    name: 'Eye Test',
+    category: 'Vision Screening',
+    price: '₹165',
+    description: 'Checks eyesight, visual acuity, and eye health',
+    duration: '30-45 minutes',
+    preparationGuidelines: 'Wear comfortable clothing, avoid calcium supplements 24h prior'
   }
 ];
 
-export default labTests; 
+export default labTests;

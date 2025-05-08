@@ -37,6 +37,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '../utils/dateUtils';
 import { useAuth } from '../contexts/AuthContext';
+import io from 'socket.io-client';
 
 // Dummy data for appointments
 const dummyAppointments = [
@@ -168,6 +169,7 @@ const Appointments = () => {
   });
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const socket = io('http://localhost:5000'); // Replace with your server URL
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -218,6 +220,16 @@ const Appointments = () => {
 
     fetchAppointments();
   }, [currentUser]);
+
+  useEffect(() => {
+    socket.on('newOrder', (order) => {
+      setAppointments((prevAppointments) => [...prevAppointments, order]);
+    });
+
+    return () => {
+      socket.off('newOrder');
+    };
+  }, []);
 
   const handleTabChange = (event, newValue) => {
     setSelectedTab(newValue);
@@ -389,6 +401,37 @@ const Appointments = () => {
     }
   };
 
+  const handleDeleteAppointment = async (appointment) => {
+    try {
+      setLoading(true);
+      
+      // Get current appointments
+      const appointments = localStorageDB.getAppointments();
+      // Filter out the appointment to delete
+      const updatedAppointments = appointments.filter(app => app.id !== appointment.id);
+      // Save back to localStorage
+      localStorageDB.saveAppointments(updatedAppointments);
+      
+      // Update UI after deletion
+      setAppointments(prev => prev.filter(app => app.id !== appointment.id));
+      
+      setSnackbar({
+        open: true,
+        message: 'Appointment deleted successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete appointment',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
@@ -470,6 +513,9 @@ const Appointments = () => {
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                         {appointment.type}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontStyle: 'italic' }}>
+                        Reason: {appointment.reason || 'No reason specified'}
                       </Typography>
                       
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
@@ -558,6 +604,13 @@ const Appointments = () => {
                             onClick={() => handleCancelAppointment(appointment)}
                           >
                             Cancel
+                          </Button>
+                          <Button 
+                            variant="outlined" 
+                            color="error"
+                            onClick={() => handleDeleteAppointment(appointment)}
+                          >
+                            Delete
                           </Button>
                         </Box>
                       )}
@@ -727,4 +780,4 @@ const Appointments = () => {
   );
 };
 
-export default Appointments; 
+export default Appointments;

@@ -198,14 +198,21 @@ const BookAppointment = () => {
       const appointmentData = {
         userId: currentUser?.uid || 'guest-user',
         doctorId: selectedDoctor.id,
+        doctor: selectedDoctor.name,  // Add doctor name directly
         doctorName: selectedDoctor.name,
-        doctorSpecialty: selectedDoctor.specialty,
+        doctorSpecialty: selectedDoctor.specialization,
+        type: 'General Consultation',  // Add appointment type
+        date: date,  // Add formatted date
+        time: time,  // Add formatted time
         patientName: userData?.name || currentUser?.displayName || 'Guest Patient',
         reason: formData.reason || 'General Checkup',
         status: 'Upcoming',
         appointmentDate: appointmentDateTime.toISOString(),
         notes: formData.notes || '',
         createdAt: new Date().toISOString(),
+        hasBill: false,  // Initialize billing info
+        billAmount: 100,
+        billPaid: false,
         reminders: {
           sms: reminders.sms,
           instantNotification: reminders.instantNotification,
@@ -679,4 +686,4 @@ const BookAppointment = () => {
   );
 };
 
-export default BookAppointment; 
+export default BookAppointment;
